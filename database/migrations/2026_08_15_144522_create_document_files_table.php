@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('document_files', function (Blueprint $table) {
             $table->id();
             $table->foreignId('document_id')->constrained()->cascadeOnDelete();
-            $table->string('reference_no');
-            $table->date('issued_date');
+            $table->string('reference_no')->nullable();
+            $table->date('issued_date')->nullable();
             $table->string('disk')->default('local');
             $table->string('path');
             $table->string('original_name');

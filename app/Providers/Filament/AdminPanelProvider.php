@@ -49,10 +49,16 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                AccountWidget::class,
-                FilamentInfoWidget::class,
+                // AccountWidget::class,
+                // FilamentInfoWidget::class,
             ])
-            ->plugin(FilamentShieldPlugin::make()->navigationGroup('ຜູ້ໃຊ້ງານ ແລະ ສິດທິ'))
+            ->plugin(
+                FilamentShieldPlugin::make()
+                    ->navigationGroup('ຜູ້ໃຊ້ງານ ແລະ ສິດທິ')
+                    ->navigationLabel('ສິດທິ')
+                    ->modelLabel('ສິດທິ')
+                    ->pluralModelLabel('ສິດທິ')
+            )
             ->databaseNotifications()
             ->middleware([
                 EncryptCookies::class,

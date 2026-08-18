@@ -9,8 +9,8 @@ A complete, versioned bundle of Standards, Indicators, BasisMains, and BasisItem
 _Avoid_: version, edition (when referring to the whole bundle)
 
 **BasisMain (ຫຼັກຖານ)**:
-The unit of evidence a department must submit against, one level below Indicator. `title` is a short heading shown to the person uploading; `description` (optional, multi-line) elaborates what the evidence must demonstrate. A Document is created per (department, BasisMain, AcademicYear) — evidence is never split into finer-grained sub-items below BasisMain, even when `description` lists several checklist-like conditions.
-_Avoid_: BasisItem, sub-criteria, checklist item (as separate database entities — they are text inside `description`, not rows)
+The unit of evidence a department must submit against, one level below Indicator. `title` is its only content — one short, self-contained criterion (e.g. "ມີວິໄສທັດ ແລະ ພາລະກິດ"). An Indicator typically has 2-5 BasisMains. Each is tracked and reported on individually — upload progress is measured per BasisMain within an Indicator ("3 of 5 uploaded"), which is the reason a BasisMain is never a multi-line bundle of several criteria. A Document is created per (department, BasisMain, AcademicYear).
+_Avoid_: BasisItem, sub-criteria, checklist item, description (as a field bundling multiple criteria into one BasisMain — each criterion gets its own BasisMain row instead)
 
 **Document (ເອກະສານ)**:
 A submission — one department's evidence bundle for a single BasisMain, in a single AcademicYear. Uniquely identified by **department + basis_main + academic_year** (via the submitting user's `department_id`, not the user themselves) — at most one Document may exist per combination, system-wide, regardless of which staff member in the department creates or edits it. `user_id` records who submitted it, but is not part of the submission's identity: any staff member in the same department edits the same Document rather than creating a second one. It is a container: it groups one or more DocumentFiles but carries no reference number or date of its own — those belong to each individual file, not the submission as a whole.

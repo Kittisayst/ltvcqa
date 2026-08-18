@@ -14,6 +14,8 @@ class DepartmentCompletionOverview extends TableWidget
 {
     protected static ?string $heading = 'ຄວາມຄືບໜ້າການສົ່ງຫຼັກຖານຕາມພະແນກ';
 
+    protected static ?int $sort = 10;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
@@ -25,7 +27,7 @@ class DepartmentCompletionOverview extends TableWidget
     {
         return $table
             ->records(function (): Collection {
-                $activeYear = AcademicYear::where('is_active', true)->first();
+                $activeYear = AcademicYear::active();
 
                 if (! $activeYear) {
                     return collect();

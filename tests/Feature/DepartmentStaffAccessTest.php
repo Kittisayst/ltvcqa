@@ -22,8 +22,12 @@ it('sees documents from every department in the list, read-only', function (): v
     $ownUser = User::factory()->for($department)->create();
     $otherUser = User::factory()->for(Department::factory())->create();
 
-    $ownDocuments = Document::factory()->count(2)->for($ownUser, 'user')->create();
-    $otherDocuments = Document::factory()->count(2)->for($otherUser, 'user')->create();
+    // The list defaults its academic year filter to the active year, so
+    // every document here must share one to all show up by default.
+    $academicYear = AcademicYear::factory()->create(['is_active' => true]);
+
+    $ownDocuments = Document::factory()->count(2)->for($ownUser, 'user')->for($academicYear, 'academicYear')->create();
+    $otherDocuments = Document::factory()->count(2)->for($otherUser, 'user')->for($academicYear, 'academicYear')->create();
 
     Livewire::test(ListDocuments::class)
         ->assertCanSeeTableRecords($ownDocuments)

@@ -13,11 +13,14 @@ class IndicatorForm
         return $schema
             ->components([
                 Select::make('standard_id')
+                    ->label('ມາດຕະຖານ')
                     ->relationship('standard', 'name')
                     ->required(),
                 TextInput::make('name')
+                    ->label('ຊື່')
                     ->required(),
                 TextInput::make('order')
+                    ->label('ລຳດັບ')
                     ->required()
                     ->numeric()
                     ->default(0),

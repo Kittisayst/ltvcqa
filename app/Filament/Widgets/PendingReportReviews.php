@@ -14,6 +14,8 @@ class PendingReportReviews extends TableWidget
 {
     protected static ?string $heading = 'ບົດລາຍງານລໍຖ້າການປະເມີນ';
 
+protected static ?int $sort = 9;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool

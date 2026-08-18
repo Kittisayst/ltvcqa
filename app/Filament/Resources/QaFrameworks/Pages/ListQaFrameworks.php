@@ -4,9 +4,9 @@ namespace App\Filament\Resources\QaFrameworks\Pages;
 
 use App\Filament\Resources\QaFrameworks\QaFrameworkResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ManageRecords;
+use Filament\Resources\Pages\ListRecords;
 
-class ManageQaFrameworks extends ManageRecords
+class ListQaFrameworks extends ListRecords
 {
     protected static string $resource = QaFrameworkResource::class;
 

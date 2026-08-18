@@ -87,10 +87,18 @@ class ReportForm
                     ]),
                 Select::make('assessor_id')
                     ->label('ຜູ້ປະເມີນ')
-                    ->relationship('assessor', 'name')
+                    ->relationship(
+                        'assessor',
+                        'name',
+                        modifyQueryUsing: fn ($query) => $query->whereHas(
+                            'roles',
+                            fn ($query) => $query->where('name', 'assessor')
+                        ),
+                    )
                     ->default(fn () => auth()->user()?->hasRole('assessor') ? auth()->id() : null)
                     ->disabled(fn (): bool => ! $canEvaluate())
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(),
                 Select::make('status')
                     ->label('ສະຖານະ')
                     ->options([

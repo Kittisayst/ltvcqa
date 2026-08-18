@@ -38,6 +38,7 @@ class DepartmentResource extends Resource
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('ຊື່')
                     ->required()
                     ->maxLength(255),
             ]);

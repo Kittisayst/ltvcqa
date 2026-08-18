@@ -11,9 +11,7 @@ use App\Models\DocumentFile;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -25,6 +23,7 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 use UnitEnum;
 
 class UploadEvidence extends Page implements HasTable
@@ -49,7 +48,7 @@ class UploadEvidence extends Page implements HasTable
 
     private function currentAcademicYear(): ?AcademicYear
     {
-        return AcademicYear::where('is_active', true)->first();
+        return AcademicYear::active();
     }
 
     /**
@@ -92,6 +91,7 @@ class UploadEvidence extends Page implements HasTable
                         ->where('academic_year_id', $academicYear?->id)
                         ->whereHas('user', fn (Builder $query) => $query->where('department_id', $departmentId))
                         ->with('files')])
+                    ->orderBy('indicator_id')
                     ->orderBy('order');
 
                 return $query;
@@ -99,6 +99,9 @@ class UploadEvidence extends Page implements HasTable
             ->groups([
                 Group::make('indicator.name')
                     ->label('ຕົວຊີ້ວັດ')
+                    ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
+                        '<span class="text-lg font-semibold">'.e($record->indicator->name).'</span>'
+                    ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
             ])
             ->defaultGroup('indicator.name')
@@ -141,12 +144,7 @@ class UploadEvidence extends Page implements HasTable
                     ->label('ອັບໂຫຼດ')
                     ->icon(Heroicon::OutlinedArrowUpTray)
                     ->schema([
-                        TextInput::make('reference_no')
-                            ->label('ເລກທີ່')
-                            ->required(),
-                        DatePicker::make('issued_date')
-                            ->label('ວັນທີອອກ')
-                            ->required(),
+                        ...$this->evidenceReferenceFields(),
                         $this->evidenceFileUploadComponent('documents'),
                         Hidden::make('disk')->default('local'),
                         Hidden::make('original_name')->required(),
@@ -186,8 +184,8 @@ class UploadEvidence extends Page implements HasTable
 
                         DocumentFile::create([
                             'document_id' => $document->id,
-                            'reference_no' => $data['reference_no'],
-                            'issued_date' => $data['issued_date'],
+                            'reference_no' => $data['reference_no'] ?? null,
+                            'issued_date' => $data['issued_date'] ?? null,
                             'disk' => $data['disk'],
                             'path' => $data['path'],
                             'original_name' => $data['original_name'],

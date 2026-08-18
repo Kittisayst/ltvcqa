@@ -102,8 +102,15 @@ class LegacyQaDataSeeder extends Seeder
     }
 
     /**
+     * Each `\n`-separated bullet line under a legacy basisMainID becomes its
+     * own BasisMain, so upload progress can be tracked and reported per line
+     * within an indicator rather than for the group as a whole. Legacy
+     * documents (submitted once per basisMainID) attach to the first line's
+     * BasisMain only — the raw data does not say which bullet the original
+     * evidence bundle covered.
+     *
      * @param  array<int, int>  $indicatorMap
-     * @return array<int, int> legacy basisMainID => new basis_mains.id
+     * @return array<int, int> legacy basisMainID => first line's basis_mains.id
      */
     private function seedBasisMains(PDO $legacy, array $indicatorMap): array
     {
@@ -119,28 +126,29 @@ class LegacyQaDataSeeder extends Seeder
                 continue;
             }
 
-            $orderCounters[$indicatorId] = ($orderCounters[$indicatorId] ?? 0) + 1;
+            foreach ($this->splitBasisName($row['basisName']) as $lineIndex => $title) {
+                $orderCounters[$indicatorId] = ($orderCounters[$indicatorId] ?? 0) + 1;
 
-            [$title, $description] = $this->splitBasisName($row['basisName']);
+                $basisMain = BasisMain::create([
+                    'indicator_id' => $indicatorId,
+                    'title' => $title,
+                    'order' => $orderCounters[$indicatorId],
+                ]);
 
-            $basisMain = BasisMain::create([
-                'indicator_id' => $indicatorId,
-                'title' => $title,
-                'description' => $description,
-                'order' => $orderCounters[$indicatorId],
-            ]);
-
-            $map[(int) $row['basisMainID']] = $basisMain->id;
+                if ($lineIndex === 0) {
+                    $map[(int) $row['basisMainID']] = $basisMain->id;
+                }
+            }
         }
 
         return $map;
     }
 
     /**
-     * Splits the legacy `\n`-separated bullet text into a short title (the
-     * first line) and the remaining lines as descriptive detail.
+     * Splits the legacy `\n`-separated bullet text into individual titles,
+     * one per BasisMain.
      *
-     * @return array{0: string, 1: ?string}
+     * @return list<string>
      */
     private function splitBasisName(string $basisName): array
     {
@@ -156,13 +164,7 @@ class LegacyQaDataSeeder extends Seeder
             }
         }
 
-        if ($items === []) {
-            return [trim($basisName), null];
-        }
-
-        $title = array_shift($items);
-
-        return [$title, $items === [] ? null : implode("\n", $items)];
+        return $items === [] ? [trim($basisName)] : $items;
     }
 
     /**

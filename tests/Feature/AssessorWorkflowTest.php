@@ -11,6 +11,7 @@ use App\Models\Report;
 use App\Models\Standard;
 use App\Models\User;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 
 it('cannot open the report create page', function (): void {
     actingAsAssessor();
@@ -71,6 +72,7 @@ it('can update evaluation fields but not reassign the report to a different indi
 it('is always recorded as its own assessor regardless of the submitted assessor', function (): void {
     $assessor = actingAsAssessor();
     $otherAssessor = User::factory()->create();
+    $otherAssessor->assignRole(Role::findOrCreate('assessor', 'web'));
 
     $framework = QaFramework::factory()->create();
     $academicYear = AcademicYear::factory()->create(['framework_id' => $framework->id]);

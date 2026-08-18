@@ -44,6 +44,7 @@ class AcademicYearResource extends Resource
                     ->disabledOn('edit')
                     ->required(),
                 TextInput::make('name')
+                    ->label('ຊື່')
                     ->required()
                     ->maxLength(255),
             ]);

@@ -7,7 +7,6 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -28,9 +27,6 @@ class BasisMainsRelationManager extends RelationManager
                     ->label('ຫຼັກຖານ')
                     ->required()
                     ->columnSpanFull(),
-                Textarea::make('description')
-                    ->label('ລາຍລະອຽດ')
-                    ->columnSpanFull(),
             ]);
     }
 
@@ -45,14 +41,10 @@ class BasisMainsRelationManager extends RelationManager
                     ->label('ຫຼັກຖານ')
                     ->wrap()
                     ->searchable(),
-                TextColumn::make('description')
-                    ->label('ລາຍລະອຽດ')
-                    ->wrap()
-                    ->limit(80)
-                    ->toggleable(),
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->label('ເພີ່ມຫຼັກຖານ')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['order'] = $this->getOwnerRecord()->basisMains()->max('order') + 1;
 

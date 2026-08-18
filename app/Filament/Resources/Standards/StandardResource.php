@@ -48,6 +48,7 @@ class StandardResource extends Resource
                     ->live()
                     ->required(),
                 TextInput::make('name')
+                    ->label('ຊື່')
                     ->required()
                     ->maxLength(255)
                     ->columnSpanFull()

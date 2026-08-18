@@ -1,10 +1,8 @@
 <?php
 
-use App\Filament\Resources\QaFrameworks\Pages\ManageQaFrameworks;
+use App\Filament\Resources\QaFrameworks\Pages\CreateQaFramework;
+use App\Filament\Resources\QaFrameworks\Pages\EditQaFramework;
 use App\Models\QaFramework;
-use Filament\Actions\CreateAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\Testing\TestAction;
 use Livewire\Livewire;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -14,12 +12,13 @@ it('rejects publishing a second framework while one is already published', funct
 
     QaFramework::factory()->create(['status' => 'published']);
 
-    Livewire::test(ManageQaFrameworks::class)
-        ->callAction(TestAction::make(CreateAction::class), data: [
+    Livewire::test(CreateQaFramework::class)
+        ->fillForm([
             'name' => 'ຊຸດມາດຕະຖານ 2026',
             'status' => 'published',
         ])
-        ->assertHasActionErrors(['status']);
+        ->call('create')
+        ->assertHasFormErrors(['status']);
 
     assertDatabaseCount(QaFramework::class, 1);
 });
@@ -29,12 +28,13 @@ it('allows creating a second framework as draft', function (): void {
 
     QaFramework::factory()->create(['status' => 'published']);
 
-    Livewire::test(ManageQaFrameworks::class)
-        ->callAction(TestAction::make(CreateAction::class), data: [
+    Livewire::test(CreateQaFramework::class)
+        ->fillForm([
             'name' => 'ຊຸດມາດຕະຖານ 2026',
             'status' => 'draft',
         ])
-        ->assertHasNoActionErrors();
+        ->call('create')
+        ->assertHasNoFormErrors();
 
     assertDatabaseCount(QaFramework::class, 2);
 });
@@ -45,12 +45,13 @@ it('rejects switching a draft framework to published while another is already pu
     QaFramework::factory()->create(['status' => 'published']);
     $draft = QaFramework::factory()->draft()->create();
 
-    Livewire::test(ManageQaFrameworks::class)
-        ->callAction(TestAction::make(EditAction::class)->table($draft), data: [
+    Livewire::test(EditQaFramework::class, ['record' => $draft->getKey()])
+        ->fillForm([
             'name' => $draft->name,
             'status' => 'published',
         ])
-        ->assertHasActionErrors(['status']);
+        ->call('save')
+        ->assertHasFormErrors(['status']);
 
     expect($draft->fresh()->status)->toBe('draft');
 });
@@ -60,10 +61,11 @@ it('allows re-saving the currently published framework as published', function (
 
     $framework = QaFramework::factory()->create(['status' => 'published']);
 
-    Livewire::test(ManageQaFrameworks::class)
-        ->callAction(TestAction::make(EditAction::class)->table($framework), data: [
+    Livewire::test(EditQaFramework::class, ['record' => $framework->getKey()])
+        ->fillForm([
             'name' => $framework->name,
             'status' => 'published',
         ])
-        ->assertHasNoActionErrors();
+        ->call('save')
+        ->assertHasNoFormErrors();
 });

@@ -77,6 +77,30 @@ it('creates a new document and file on first upload for a basis main', function 
         ->and($document->academic_year_id)->toBe($academicYear->id);
 });
 
+it('uploads an image with no reference number or issue date, without crashing', function (): void {
+    $framework = QaFramework::factory()->create();
+    AcademicYear::factory()->create(['framework_id' => $framework->id, 'is_active' => true]);
+    $standard = Standard::factory()->create(['framework_id' => $framework->id]);
+    $indicator = Indicator::factory()->create(['standard_id' => $standard->id]);
+    $basisMain = BasisMain::factory()->create(['indicator_id' => $indicator->id]);
+
+    $department = Department::factory()->create();
+    actingAsDepartmentStaff($department);
+
+    Livewire::test(UploadEvidence::class)
+        ->callTableAction('upload', $basisMain, data: [
+            'path' => UploadedFile::fake()->image('photo.jpg'),
+        ])
+        ->assertHasNoActionErrors();
+
+    assertDatabaseCount(DocumentFile::class, 1);
+
+    $file = DocumentFile::first();
+
+    expect($file->reference_no)->toBe('ຮູບພາບ')
+        ->and($file->issued_date)->toBeNull();
+});
+
 it('reuses the existing department document when a colleague already created one', function (): void {
     $framework = QaFramework::factory()->create();
     $academicYear = AcademicYear::factory()->create(['framework_id' => $framework->id, 'is_active' => true]);

@@ -1,6 +1,6 @@
 <?php
 
-use App\Filament\Resources\QaFrameworks\Pages\ManageQaFrameworks;
+use App\Filament\Resources\QaFrameworks\Pages\ListQaFrameworks;
 use App\Filament\Resources\Standards\Pages\ManageStandards;
 use App\Models\BasisMain;
 use App\Models\Indicator;
@@ -21,13 +21,12 @@ it('copies a standard with its indicators and basis mains into the target draft 
     $indicator = Indicator::factory()->for($standard)->create(['name' => 'ຕົວຊີ້ວັດ 1', 'order' => 1]);
     BasisMain::factory()->for($indicator)->create([
         'title' => 'ຫຼັກຖານ 1',
-        'description' => 'ລາຍລະອຽດ',
         'order' => 1,
     ]);
 
     $target = QaFramework::factory()->draft()->create();
 
-    Livewire::test(ManageQaFrameworks::class)
+    Livewire::test(ListQaFrameworks::class)
         ->callAction(TestAction::make('copyFrom')->table($target), data: [
             'source_framework_id' => $source->id,
             'standard_ids' => [$standard->id],
@@ -46,8 +45,7 @@ it('copies a standard with its indicators and basis mains into the target draft 
         ->and($copiedStandard->indicators)->toHaveCount(1)
         ->and($copiedStandard->indicators->first()->name)->toBe('ຕົວຊີ້ວັດ 1')
         ->and($copiedStandard->indicators->first()->basisMains)->toHaveCount(1)
-        ->and($copiedStandard->indicators->first()->basisMains->first()->title)->toBe('ຫຼັກຖານ 1')
-        ->and($copiedStandard->indicators->first()->basisMains->first()->description)->toBe('ລາຍລະອຽດ');
+        ->and($copiedStandard->indicators->first()->basisMains->first()->title)->toBe('ຫຼັກຖານ 1');
 
     // Source untouched.
     expect($standard->fresh()->framework_id)->toBe($source->id);
@@ -59,7 +57,7 @@ it('hides the copy action for a published target framework', function (): void {
     QaFramework::factory()->create(['status' => 'published']);
     $target = QaFramework::factory()->create(['status' => 'published']);
 
-    Livewire::test(ManageQaFrameworks::class)
+    Livewire::test(ListQaFrameworks::class)
         ->assertTableActionHidden('copyFrom', $target);
 });
 
@@ -72,7 +70,7 @@ it('rejects a submitted standard whose name already exists in the target framewo
     $target = QaFramework::factory()->draft()->create();
     Standard::factory()->for($target, 'framework')->create(['name' => 'ມາດຕະຖານ ຊ້ຳ']);
 
-    Livewire::test(ManageQaFrameworks::class)
+    Livewire::test(ListQaFrameworks::class)
         ->callAction(TestAction::make('copyFrom')->table($target), data: [
             'source_framework_id' => $source->id,
             'standard_ids' => [$duplicate->id],
@@ -93,7 +91,7 @@ it('copies only the selected standards that are still eligible when multiple are
     $target = QaFramework::factory()->draft()->create();
     Standard::factory()->for($target, 'framework')->create(['name' => 'ມາດຕະຖານ ຊ້ຳ']);
 
-    Livewire::test(ManageQaFrameworks::class)
+    Livewire::test(ListQaFrameworks::class)
         ->callAction(TestAction::make('copyFrom')->table($target), data: [
             'source_framework_id' => $source->id,
             'standard_ids' => [$unique->id],

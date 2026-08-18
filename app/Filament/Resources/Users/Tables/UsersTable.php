@@ -20,6 +20,15 @@ class UsersTable
                     ->searchable(),
                 TextColumn::make('department.name')
                     ->searchable(),
+                TextColumn::make('roles.name')
+                    ->label('ບົດບາດ')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'super_admin' => 'ຜູ້ບໍລິຫານລະບົບ',
+                        'assessor' => 'ຜູ້ປະເມີນ',
+                        'department-staff' => 'ພະນັກງານພະແນກ',
+                        default => $state,
+                    }),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

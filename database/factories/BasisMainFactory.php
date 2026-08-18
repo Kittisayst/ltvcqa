@@ -21,7 +21,6 @@ class BasisMainFactory extends Factory
         return [
             'indicator_id' => Indicator::factory(),
             'title' => fake()->sentence(5),
-            'description' => fake()->optional()->paragraph(),
             'order' => fake()->numberBetween(1, 20),
         ];
     }

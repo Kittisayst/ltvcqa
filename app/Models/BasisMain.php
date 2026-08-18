@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['indicator_id', 'title', 'description', 'order'])]
+#[Fillable(['indicator_id', 'title', 'order'])]
 class BasisMain extends Model
 {
     use HasFactory;

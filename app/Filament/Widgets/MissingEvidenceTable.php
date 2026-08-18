@@ -23,7 +23,7 @@ class MissingEvidenceTable extends TableWidget
     public function table(Table $table): Table
     {
         $user = auth()->user();
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $activeYear = AcademicYear::active();
 
         return $table
             ->query(

@@ -2,7 +2,9 @@
 
 use App\Models\Department;
 use App\Models\User;
+use Filament\Widgets\ChartWidget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -47,6 +49,24 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * ChartWidget::getData() is protected (Filament calls it internally when
+ * rendering) — reflection is the only way to assert on it directly in a
+ * test without rendering the actual chart.js output.
+ *
+ * @param  class-string<ChartWidget>  $widget
+ * @return array<string, mixed>
+ */
+function getChartData(string $widget): array
+{
+    $instance = Livewire::test($widget)->instance();
+
+    $method = new ReflectionMethod($instance, 'getData');
+    $method->setAccessible(true);
+
+    return $method->invoke($instance);
+}
 
 function grantPermissionsTo(Role $role, array $names): void
 {

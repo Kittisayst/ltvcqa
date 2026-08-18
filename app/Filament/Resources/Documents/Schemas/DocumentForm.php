@@ -40,6 +40,7 @@ class DocumentForm
                             fn ($query) => $query->where('department_id', auth()->user()?->department_id)
                         )
                     )
+                    ->default(fn () => auth()->id())
                     ->required(),
                 Select::make('standard_id')
                     ->label('ມາດຕະຖານ')
@@ -67,7 +68,8 @@ class DocumentForm
                         $set('indicator_id', null);
                         $set('basis_main_id', null);
                     })
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 Select::make('indicator_id')
                     ->label('ຕົວຊີ້ວັດ')
                     ->options(function (Get $get): array {
@@ -91,7 +93,8 @@ class DocumentForm
                         }
                     })
                     ->afterStateUpdated(fn (callable $set) => $set('basis_main_id', null))
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 Select::make('basis_main_id')
                     ->label('ຫຼັກຖານ')
                     ->options(function (Get $get): array {
@@ -109,6 +112,7 @@ class DocumentForm
                     ->disabled(fn (Get $get): bool => blank($get('indicator_id')))
                     ->helperText('ຕ້ອງເລືອກປີການສຶກສາ, ມາດຕະຖານ ແລະ ຕົວຊີ້ວັດກ່ອນ, ຈຶ່ງຈະສະແດງລາຍການຫຼັກຖານ')
                     ->required()
+                    ->columnSpanFull()
                     ->searchable()
                     ->rule(function (Get $get, ?Document $record): Closure {
                         return function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
