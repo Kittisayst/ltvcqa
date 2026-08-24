@@ -1,6 +1,6 @@
 <?php
 
-use App\Filament\Resources\Documents\Pages\EditDocument;
+use App\Filament\Resources\Documents\Pages\ViewDocument;
 use App\Filament\Resources\Documents\RelationManagers\FilesRelationManager;
 use App\Models\Department;
 use App\Models\Document;
@@ -20,7 +20,7 @@ it('rejects a disallowed file type', function (): void {
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'reference_no' => '001/ຫລບ',
@@ -39,7 +39,7 @@ it('rejects a file larger than the configured limit', function (): void {
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'reference_no' => '001/ຫລບ',
@@ -58,7 +58,7 @@ it('requires a reference number and issue date for every file', function (): voi
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'path' => UploadedFile::fake()->create('evidence.pdf', 500, 'application/pdf'),
@@ -75,7 +75,7 @@ it('accepts a valid pdf within the size limit and captures its metadata', functi
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'reference_no' => '001/ຫລບ',
@@ -107,7 +107,7 @@ it('hides upload and delete for a department-staff viewing another department\'s
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->assertActionHidden(TestAction::make(CreateAction::class)->table())
         ->assertTableActionHidden('delete', record: $file);
@@ -121,7 +121,7 @@ it('keeps upload and delete visible for a department-staff viewing its own docum
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->assertActionVisible(TestAction::make(CreateAction::class)->table())
         ->assertTableActionVisible('delete', record: $file);

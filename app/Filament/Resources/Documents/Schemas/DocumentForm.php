@@ -10,7 +10,6 @@ use App\Models\Standard;
 use App\Models\User;
 use Closure;
 use Filament\Forms\Components\Select;
-use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
@@ -59,11 +58,6 @@ class DocumentForm
                     ->live()
                     ->dehydrated(false)
                     ->disabled(fn (Get $get): bool => blank($get('academic_year_id')))
-                    ->afterStateHydrated(function (Component $component, ?Document $record): void {
-                        if ($record?->basisMain) {
-                            $component->state($record->basisMain->indicator->standard_id);
-                        }
-                    })
                     ->afterStateUpdated(function (callable $set): void {
                         $set('indicator_id', null);
                         $set('basis_main_id', null);
@@ -87,11 +81,6 @@ class DocumentForm
                     ->live()
                     ->dehydrated(false)
                     ->disabled(fn (Get $get): bool => blank($get('standard_id')))
-                    ->afterStateHydrated(function (Component $component, ?Document $record): void {
-                        if ($record?->basisMain) {
-                            $component->state($record->basisMain->indicator_id);
-                        }
-                    })
                     ->afterStateUpdated(fn (callable $set) => $set('basis_main_id', null))
                     ->required()
                     ->columnSpanFull(),
@@ -114,12 +103,8 @@ class DocumentForm
                     ->required()
                     ->columnSpanFull()
                     ->searchable()
-                    ->rule(function (Get $get, ?Document $record): Closure {
-                        return function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
-                            if ($record && $value === $record->basis_main_id) {
-                                return;
-                            }
-
+                    ->rule(function (Get $get): Closure {
+                        return function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                             $academicYear = AcademicYear::find($get('academic_year_id'));
 
                             if (! $academicYear || ! $value) {
@@ -135,8 +120,8 @@ class DocumentForm
                             }
                         };
                     })
-                    ->rule(function (Get $get, ?Document $record): Closure {
-                        return function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                    ->rule(function (Get $get): Closure {
+                        return function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                             $academicYearId = $get('academic_year_id');
                             $departmentId = User::find($get('user_id'))?->department_id;
 
@@ -148,7 +133,6 @@ class DocumentForm
                                 ->where('basis_main_id', $value)
                                 ->where('academic_year_id', $academicYearId)
                                 ->whereHas('user', fn ($query) => $query->where('department_id', $departmentId))
-                                ->when($record, fn ($query) => $query->whereKeyNot($record->getKey()))
                                 ->exists();
 
                             if ($duplicateExists) {

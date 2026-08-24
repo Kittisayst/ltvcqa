@@ -7,9 +7,6 @@ use App\Models\BasisMain;
 use App\Models\Department;
 use App\Models\Indicator;
 use App\Models\Standard;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
@@ -180,7 +177,6 @@ class DocumentsTable
             ])
             ->recordActions([
                 ViewAction::make(),
-                EditAction::make(),
             ]);
     }
 }

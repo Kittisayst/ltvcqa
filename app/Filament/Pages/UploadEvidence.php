@@ -100,7 +100,10 @@ class UploadEvidence extends Page implements HasTable
                 Group::make('indicator.name')
                     ->label('ຕົວຊີ້ວັດ')
                     ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
-                        '<span class="text-lg font-semibold">'.e($record->indicator->name).'</span>'
+                        '<div class="flex flex-col gap-0.5">'
+                        .'<span class="text-xs font-medium text-gray-500 dark:text-gray-400" style="color: var(--amber-600)">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</span> | '
+                        .' <span class="text-lg font-semibold" style="color: var(--teal-600)">'.e($record->indicator->name).'</span>'
+                        .'</div>'
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
             ])
@@ -198,7 +201,7 @@ class UploadEvidence extends Page implements HasTable
                     ->color('gray')
                     ->icon(Heroicon::OutlinedEye)
                     ->visible(fn (BasisMain $record): bool => $record->documents->isNotEmpty())
-                    ->url(fn (BasisMain $record): string => route('filament.admin.resources.documents.edit', $record->documents->first())),
+                    ->url(fn (BasisMain $record): string => route('filament.admin.resources.documents.view', $record->documents->first())),
             ])
             ->emptyStateHeading('ຍັງບໍ່ໄດ້ກຳນົດປີການສຶກສາປັດຈຸບັນ');
     }

@@ -31,7 +31,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(Login::class)
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
+                'amber' => Color::Amber,
+                'teal' => Color::Teal,
+                'rose' => Color::Rose,
             ])
             ->brandLogo(asset('images/ltvc_logo.png'))
             ->brandLogoHeight('3rem')

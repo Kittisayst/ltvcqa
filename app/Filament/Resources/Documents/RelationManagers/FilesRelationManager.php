@@ -39,6 +39,17 @@ class FilesRelationManager extends RelationManager
         return in_array(strtolower(pathinfo($file->original_name, PATHINFO_EXTENSION)), self::PREVIEWABLE_EXTENSIONS, true);
     }
 
+    /**
+     * Filament makes relation managers read-only by default on a ViewRecord
+     * page, but every action here already gates itself on `can('update', ...)`
+     * — file upload/delete must still work from ViewDocument since it's now
+     * the only page a document has.
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     private static function mimeTypeIcon(string $mimeType): Heroicon
     {
         return match (true) {
@@ -89,6 +100,9 @@ class FilesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('original_name')
             ->columns([
+                TextColumn::make('rowIndex')
+                    ->label('ລຳດັບ')
+                    ->state(fn (\stdClass $rowLoop): int => $rowLoop->iteration),
                 TextColumn::make('reference_no')
                     ->label('ເລກທີ່')
                     ->searchable(),
@@ -98,7 +112,16 @@ class FilesRelationManager extends RelationManager
                     ->sortable(),
                 TextColumn::make('original_name')
                     ->label('ຊື່ໄຟລ໌')
-                    ->limit(50)
+                    ->limit(30)
+                    ->tooltip(function (TextColumn $column): ?string {
+                        $state = $column->getState();
+
+                        if (strlen($state) <= $column->getCharacterLimit()) {
+                            return null;
+                        }
+
+                        return $state;
+                    })
                     ->searchable(),
                 IconColumn::make('mime_type')
                     ->label('ປະເພດ')

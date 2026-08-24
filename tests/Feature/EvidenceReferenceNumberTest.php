@@ -1,6 +1,6 @@
 <?php
 
-use App\Filament\Resources\Documents\Pages\EditDocument;
+use App\Filament\Resources\Documents\Pages\ViewDocument;
 use App\Filament\Resources\Documents\RelationManagers\FilesRelationManager;
 use App\Models\Document;
 use App\Models\DocumentFile;
@@ -18,7 +18,7 @@ it('auto-labels an uploaded image as ຮູບພາບ without requiring a refe
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'path' => UploadedFile::fake()->image('photo.jpg'),
@@ -40,7 +40,7 @@ it('requires a reference number for a non-image file when the has-reference-no t
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'has_reference_no' => true,
@@ -59,7 +59,7 @@ it('allows a non-image file with no reference number, as long as it still has an
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'has_reference_no' => false,
@@ -83,7 +83,7 @@ it('still requires an issue date for a non-image file even without a reference n
 
     Livewire::test(FilesRelationManager::class, [
         'ownerRecord' => $document,
-        'pageClass' => EditDocument::class,
+        'pageClass' => ViewDocument::class,
     ])
         ->callAction(TestAction::make(CreateAction::class)->table(), data: [
             'has_reference_no' => false,

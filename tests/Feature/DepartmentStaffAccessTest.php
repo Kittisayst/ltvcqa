@@ -34,7 +34,7 @@ it('sees documents from every department in the list, read-only', function (): v
         ->assertCanSeeTableRecords($otherDocuments);
 });
 
-it('can view but not edit another department\'s document', function (): void {
+it('can view another department\'s document', function (): void {
     actingAsDepartmentStaff();
 
     $otherUser = User::factory()->for(Department::factory())->create();
@@ -42,9 +42,6 @@ it('can view but not edit another department\'s document', function (): void {
 
     $this->get(DocumentResource::getUrl('view', ['record' => $document]))
         ->assertSuccessful();
-
-    $this->get(DocumentResource::getUrl('edit', ['record' => $document]))
-        ->assertForbidden();
 });
 
 it('is forbidden from the standards master-data resource', function (): void {

@@ -1,7 +1,6 @@
 <?php
 
 use App\Filament\Resources\Documents\Pages\CreateDocument;
-use App\Filament\Resources\Documents\Pages\EditDocument;
 use App\Models\AcademicYear;
 use App\Models\BasisMain;
 use App\Models\Department;
@@ -73,31 +72,4 @@ it('allows a different department to submit the same basis main for the same aca
         ->assertHasNoFormErrors();
 
     assertDatabaseCount(Document::class, 2);
-});
-
-it('allows re-saving the same document without triggering its own duplicate check', function (): void {
-    $framework = QaFramework::factory()->create();
-    $academicYear = AcademicYear::factory()->create(['framework_id' => $framework->id]);
-    $standard = Standard::factory()->create(['framework_id' => $framework->id]);
-    $indicator = Indicator::factory()->create(['standard_id' => $standard->id]);
-    $basisMain = BasisMain::factory()->create(['indicator_id' => $indicator->id]);
-
-    $department = Department::factory()->create();
-    $staff = actingAsDepartmentStaff($department);
-
-    $document = Document::factory()->create([
-        'user_id' => $staff->id,
-        'basis_main_id' => $basisMain->id,
-        'academic_year_id' => $academicYear->id,
-    ]);
-
-    Livewire::test(EditDocument::class, ['record' => $document->id])
-        ->fillForm([
-            'academic_year_id' => $academicYear->id,
-            'standard_id' => $standard->id,
-            'indicator_id' => $indicator->id,
-            'basis_main_id' => $basisMain->id,
-        ])
-        ->call('save')
-        ->assertHasNoFormErrors();
 });
