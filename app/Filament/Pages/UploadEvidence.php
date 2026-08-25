@@ -114,7 +114,7 @@ class UploadEvidence extends Page implements HasTable
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
             ])
-            ->defaultGroup('indicator.order')
+            ->defaultGroup('indicator.name')
             ->defaultPaginationPageOption(50)
             ->filters([
                 SelectFilter::make('department_id')
