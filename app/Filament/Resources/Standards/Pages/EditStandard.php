@@ -3,17 +3,17 @@
 namespace App\Filament\Resources\Standards\Pages;
 
 use App\Filament\Resources\Standards\StandardResource;
-use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ManageRecords;
+use Filament\Actions\DeleteAction;
+use Filament\Resources\Pages\EditRecord;
 
-class ManageStandards extends ManageRecords
+class EditStandard extends EditRecord
 {
     protected static string $resource = StandardResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->modalWidth('md'),
+            DeleteAction::make(),
         ];
     }
 }

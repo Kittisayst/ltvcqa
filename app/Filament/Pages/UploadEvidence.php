@@ -8,10 +8,13 @@ use App\Models\BasisMain;
 use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentFile;
+use App\Models\Indicator;
+use App\Models\Standard;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -87,10 +90,13 @@ class UploadEvidence extends Page implements HasTable
                         ),
                         fn (Builder $query): Builder => $query->whereRaw('1 = 0'),
                     )
-                    ->with(['indicator.standard', 'documents' => fn ($query) => $query
-                        ->where('academic_year_id', $academicYear?->id)
-                        ->whereHas('user', fn (Builder $query) => $query->where('department_id', $departmentId))
-                        ->with('files')])
+                    ->with([
+                        'indicator.standard',
+                        'documents' => fn ($query) => $query
+                            ->where('academic_year_id', $academicYear?->id)
+                            ->whereHas('user', fn (Builder $query) => $query->where('department_id', $departmentId))
+                            ->with('files'),
+                    ])
                     ->orderBy('indicator_id')
                     ->orderBy('order');
 
@@ -99,26 +105,66 @@ class UploadEvidence extends Page implements HasTable
             ->groups([
                 Group::make('indicator.name')
                     ->label('ຕົວຊີ້ວັດ')
+                    ->titlePrefixedWithLabel(false)
                     ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
-                        '<div class="flex flex-col gap-0.5">'
-                        .'<span class="text-xs font-medium text-gray-500 dark:text-gray-400" style="color: var(--amber-600)">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</span> | '
-                        .' <span class="text-lg font-semibold" style="color: var(--teal-600)">'.e($record->indicator->name).'</span>'
-                        .'</div>'
+                        '<span class="text-xl font-medium text-gray-500 dark:text-gray-400" style="color: var(--amber-600); font-size: 1.25rem;">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</span>'
+                    ))
+                    ->getDescriptionFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
+                        '<span class="text-lg font-semibold" style="color: var(--teal-600); font-size: 1.10rem;">'.e($record->indicator->name).'</span>'
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
             ])
-            ->defaultGroup('indicator.name')
+            ->defaultGroup('indicator.order')
+            ->defaultPaginationPageOption(50)
             ->filters([
                 SelectFilter::make('department_id')
                     ->label('ພະແນກ/ພາກວິຊາ')
                     ->options(fn () => Department::orderBy('name')->pluck('name', 'id'))
                     ->visible($isSuperAdmin)
                     ->query(fn (Builder $query) => $query),
+                SelectFilter::make('standard_id')
+                    ->label('ມາດຕະຖານ')
+                    ->options(fn (): array => Standard::query()
+                        ->when($this->currentAcademicYear(), fn (Builder $query, AcademicYear $year) => $query->where('framework_id', $year->framework_id))
+                        ->orderBy('order')
+                        ->get()
+                        ->mapWithKeys(fn (Standard $standard): array => [$standard->id => "ມາດຕະຖານທີ {$standard->order}: {$standard->name}"])
+                        ->all())
+                    ->modifyFormFieldUsing(fn (Select $field): Select => $field
+                        ->live()
+                        ->afterStateUpdated(fn ($set) => $set('../indicator_id.value', null)))
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'],
+                        fn (Builder $query, string $value) => $query->whereHas(
+                            'indicator.standard',
+                            fn (Builder $query) => $query->where('standards.id', $value)
+                        ),
+                    )),
+                SelectFilter::make('indicator_id')
+                    ->label('ຕົວຊີ້ວັດ')
+                    ->options(fn (): array => Indicator::query()
+                        ->when(
+                            $this->tableFilters['standard_id']['value'] ?? null,
+                            fn (Builder $query, string $standardId) => $query->where('standard_id', $standardId),
+                            fn (Builder $query) => $query->when(
+                                $this->currentAcademicYear(),
+                                fn (Builder $query, AcademicYear $year) => $query->whereHas(
+                                    'standard',
+                                    fn (Builder $query) => $query->where('framework_id', $year->framework_id)
+                                ),
+                            ),
+                        )
+                        ->orderBy('order')
+                        ->get()
+                        ->mapWithKeys(fn (Indicator $indicator): array => [$indicator->id => $indicator->name])
+                        ->all()),
             ])
+            ->deferFilters(false)
             ->persistFiltersInSession()
             ->columns([
                 TextColumn::make('title')
                     ->label('ຫຼັກຖານ')
+                    ->state(fn (BasisMain $record): string => "{$record->order}. {$record->title}")
                     ->wrap()
                     ->searchable(),
                 TextColumn::make('status')
