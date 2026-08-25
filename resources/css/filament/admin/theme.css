@@ -1,0 +1,49 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+.fi-sidebar {
+    @apply bg-primary-950 dark:bg-gray-900;
+}
+
+/* Group Label (ຖ້າມີ) */
+/* Group Label (ປົກກະຕິ) */
+.fi-sidebar-group-label {
+    @apply !text-white/70;
+}
+
+/* Group Label ເວລາມີ Item Active */
+.fi-sidebar-group.fi-active .fi-sidebar-group-label {
+    @apply !text-primary-400 !font-bold;
+}
+
+.fi-sidebar-item-label {
+    @apply text-white;
+}
+
+.fi-sidebar-item-icon {
+    @apply text-white;
+}
+
+.fi-sidebar-item.fi-active {
+    .fi-sidebar-item-btn {
+        @apply !bg-primary-600;
+    }
+
+    .fi-sidebar-item-label,
+    .fi-sidebar-item-icon {
+        @apply !text-white;
+    }
+}
+
+.fi-sidebar-item:hover {
+    .fi-sidebar-item-btn {
+        @apply !bg-primary-800;
+    }
+
+    .fi-sidebar-item-label,
+    .fi-sidebar-item-icon {
+        @apply !text-white;
+    }
+}
