@@ -27,6 +27,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use UnitEnum;
 
 class UploadEvidence extends Page implements HasTable
@@ -107,10 +108,10 @@ class UploadEvidence extends Page implements HasTable
                     ->label('ຕົວຊີ້ວັດ')
                     ->titlePrefixedWithLabel(false)
                     ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
-                        '<span class="text-xl font-medium text-gray-500 dark:text-gray-400" style="color: var(--amber-600); font-size: 1.25rem;">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</span>'
-                    ))
-                    ->getDescriptionFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
-                        '<span class="text-lg font-semibold" style="color: var(--teal-600); font-size: 1.10rem;">'.e($record->indicator->name).'</span>'
+                        '<div>'
+                        .'<div style="display: block; font-size: 1.25rem; font-weight: 500; color: var(--amber-600);">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</div>'
+                        .'<div title="'.e($record->indicator->name).'" style="display: block; font-size: 1.125rem; font-weight: 600; color: var(--teal-600);">'.e(Str::limit($record->indicator->name, 80)).'</div>'
+                        .'</div>'
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
             ])
@@ -183,10 +184,14 @@ class UploadEvidence extends Page implements HasTable
                     ->color('gray'),
                 TextColumn::make('reference_numbers')
                     ->label('ເລກທີ່')
-                    ->state(fn (BasisMain $record): string => $record->documents->first()?->files
+                    ->state(fn (BasisMain $record): array => $record->documents->first()?->files
                         ->pluck('reference_no')
-                        ->implode(', ') ?? '')
-                    ->wrap(),
+                        ->filter()
+                        ->values()
+                        ->all() ?? [])
+                    ->badge()
+                    ->wrap(3)
+                    ->color('gray'),
             ])
             ->recordActions([
                 Action::make('upload')

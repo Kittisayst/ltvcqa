@@ -13,6 +13,8 @@ class MissingEvidenceTable extends TableWidget
 {
     protected static ?string $heading = 'ຫຼັກຖານທີ່ຍັງບໍ່ໄດ້ສົ່ງ';
 
+    protected static ?int $sort = 6;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
