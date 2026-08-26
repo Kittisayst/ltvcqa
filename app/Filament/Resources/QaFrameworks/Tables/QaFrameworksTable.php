@@ -46,6 +46,16 @@ class QaFrameworksTable
                     ->label('ຈຳນວນມາດຕະຖານ')
                     ->counts('standards')
                     ->badge(),
+                TextColumn::make('indicators_count')
+                    ->label('ຈຳນວນຕົວຊີ້ວັດ')
+                    ->counts('indicators')
+                    ->badge(),
+                TextColumn::make('basis_mains_count')
+                    ->label('ຈຳນວນຫຼັກຖານ')
+                    ->state(fn (QaFramework $record): int => BasisMain::query()
+                        ->whereHas('indicator.standard', fn ($query) => $query->where('framework_id', $record->id))
+                        ->count())
+                    ->badge(),
                 TextColumn::make('created_at')
                     ->label('ສ້າງເມື່ອ')
                     ->dateTime()

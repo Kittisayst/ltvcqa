@@ -5,17 +5,21 @@ namespace App\Filament\Resources\AcademicYears;
 use App\Filament\Resources\AcademicYears\Pages\ManageAcademicYears;
 use App\Models\AcademicYear;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 use UnitEnum;
 
 class AcademicYearResource extends Resource
@@ -60,11 +64,45 @@ class AcademicYearResource extends Resource
                 TextColumn::make('framework.name')
                     ->label('ຊຸດມາດຕະຖານ')
                     ->badge(),
+                IconColumn::make('is_active')
+                    ->label('ປັດຈຸບັນ')
+                    ->boolean(),
             ])
             ->filters([
                 //
             ])
             ->recordActions([
+                Action::make('activate')
+                    ->label('ຕັ້ງເປັນປັດຈຸບັນ')
+                    ->icon(Heroicon::OutlinedCheckCircle)
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn (AcademicYear $record): bool => ! $record->is_active)
+                    ->action(function (AcademicYear $record): void {
+                        if ($record->framework->status !== 'published') {
+                            Notification::make()
+                                ->title('ຊຸດມາດຕະຖານຂອງປີການສຶກສານີ້ຍັງບໍ່ໄດ້ເຜີຍແຜ່')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        DB::transaction(function () use ($record): void {
+                            AcademicYear::query()
+                                ->whereKeyNot($record->getKey())
+                                ->update(['is_active' => false]);
+
+                            $record->update(['is_active' => true]);
+                        });
+
+                        AcademicYear::forgetActiveCache();
+
+                        Notification::make()
+                            ->title('ຕັ້ງເປັນປີການສຶກສາປັດຈຸບັນແລ້ວ')
+                            ->success()
+                            ->send();
+                    }),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\QaFrameworks\Schemas;
 
+use App\Models\AcademicYear;
 use App\Models\QaFramework;
 use Closure;
 use Filament\Forms\Components\Select;
@@ -21,7 +22,8 @@ class QaFrameworkForm
                         TextInput::make('name')
                             ->label('ຊື່')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->unique(ignoreRecord: true),
                         Select::make('status')
                             ->label('ສະຖານະ')
                             ->options([
@@ -30,21 +32,32 @@ class QaFrameworkForm
                             ])
                             ->default('draft')
                             ->required()
-                            ->rule(fn(?Model $record) => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                                if ($value !== 'published') {
+                            ->rule(fn (?Model $record) => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
+                                if ($value === 'published') {
+                                    $alreadyPublished = QaFramework::query()
+                                        ->where('status', 'published')
+                                        ->when($record, fn ($query) => $query->whereKeyNot($record->getKey()))
+                                        ->exists();
+
+                                    if ($alreadyPublished) {
+                                        $fail('ມີຊຸດມາດຕະຖານອື່ນທີ່ເຜີຍແຜ່ຢູ່ແລ້ວ. ກະລຸນາປ່ຽນອັນນັ້ນເປັນຮ່າງກ່ອນ.');
+                                    }
+
                                     return;
                                 }
 
-                                $alreadyPublished = QaFramework::query()
-                                    ->where('status', 'published')
-                                    ->when($record, fn($query) => $query->whereKeyNot($record->getKey()))
-                                    ->exists();
+                                $isUsedByActiveYear = $record
+                                    && $record->status === 'published'
+                                    && AcademicYear::query()
+                                        ->where('framework_id', $record->getKey())
+                                        ->where('is_active', true)
+                                        ->exists();
 
-                                if ($alreadyPublished) {
-                                    $fail('ມີຊຸດມາດຕະຖານອື່ນທີ່ເຜີຍແຜ່ຢູ່ແລ້ວ. ກະລຸນາປ່ຽນອັນນັ້ນເປັນຮ່າງກ່ອນ.');
+                                if ($isUsedByActiveYear) {
+                                    $fail('ຊຸດມາດຕະຖານນີ້ຖືກໃຊ້ໂດຍປີການສຶກສາທີ່ active ຢູ່ — ບໍ່ສາມາດປ່ຽນເປັນຮ່າງໄດ້.');
                                 }
                             }),
-                    ])->columns(2)
+                    ])->columns(2),
             ])->columns(1);
     }
 }

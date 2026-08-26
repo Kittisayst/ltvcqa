@@ -41,9 +41,16 @@ class UploadEvidence extends Page implements HasTable
 
     protected static string|UnitEnum|null $navigationGroup = 'ຫຼັກຖານ ແລະ ເອກະສານ';
 
-    protected static ?string $title = 'ອັບໂຫຼດຫຼັກຖານ';
-
     protected string $view = 'filament.pages.upload-evidence';
+
+    public function getTitle(): string
+    {
+        $framework = $this->currentAcademicYear()?->framework;
+
+        return $framework?->status === 'published'
+            ? "ອັບໂຫຼດຫຼັກຖານ - {$framework->name}"
+            : 'ອັບໂຫຼດຫຼັກຖານ';
+    }
 
     public static function canAccess(): bool
     {
@@ -80,11 +87,12 @@ class UploadEvidence extends Page implements HasTable
             ->query(function (): Builder {
                 $departmentId = $this->resolveDepartmentId();
                 $academicYear = $this->currentAcademicYear();
+                $isFrameworkPublished = $academicYear?->framework?->status === 'published';
 
                 /** @var Builder $query */
                 $query = BasisMain::query()
                     ->when(
-                        $academicYear,
+                        $academicYear && $isFrameworkPublished,
                         fn (Builder $query) => $query->whereHas(
                             'indicator.standard',
                             fn (Builder $query) => $query->where('framework_id', $academicYear->framework_id)
@@ -110,7 +118,7 @@ class UploadEvidence extends Page implements HasTable
                     ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
                         '<div>'
                         .'<div style="display: block; font-size: 1.25rem; font-weight: 500; color: var(--amber-600);">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</div>'
-                        .'<div title="'.e($record->indicator->name).'" style="display: block; font-size: 1.125rem; font-weight: 600; color: var(--teal-600);">'.e(Str::limit($record->indicator->name, 80)).'</div>'
+                        .'<div title="'.e($record->indicator->name).'" style="display: block; font-size: 1.125rem; font-weight: 600; color: var(--teal-600);">'.e(Str::limit($record->indicator->name, 130)).'</div>'
                         .'</div>'
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
@@ -254,6 +262,8 @@ class UploadEvidence extends Page implements HasTable
                     ->visible(fn (BasisMain $record): bool => $record->documents->isNotEmpty())
                     ->url(fn (BasisMain $record): string => route('filament.admin.resources.documents.view', $record->documents->first())),
             ])
-            ->emptyStateHeading('ຍັງບໍ່ໄດ້ກຳນົດປີການສຶກສາປັດຈຸບັນ');
+            ->emptyStateHeading(fn (): string => $this->currentAcademicYear()
+                ? 'ຊຸດມາດຕະຖານຂອງປີການສຶກສານີ້ຍັງບໍ່ໄດ້ເຜີຍແຜ່'
+                : 'ຍັງບໍ່ໄດ້ກຳນົດປີການສຶກສາປັດຈຸບັນ');
     }
 }

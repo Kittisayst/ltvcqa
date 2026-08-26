@@ -90,6 +90,7 @@ trait ConfiguresEvidenceFileUpload
                     ->default(true)
                     ->live()
                     ->dehydrated(false)
+                    ->inline(false)
                     ->visible(fn(Get $get): bool => !$isImage($get))
                     ->afterStateUpdated(fn(bool $state, callable $set) => $state ? null : $set('reference_no', null)),
                 TextInput::make('reference_no')
