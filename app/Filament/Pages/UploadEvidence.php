@@ -118,7 +118,7 @@ class UploadEvidence extends Page implements HasTable
                     ->getTitleFromRecordUsing(fn (BasisMain $record): HtmlString => new HtmlString(
                         '<div>'
                         .'<div style="display: block; font-size: 1.25rem; font-weight: 500; color: var(--amber-600);">ມາດຕະຖານທີ '.$record->indicator->standard->order.': '.e($record->indicator->standard->name).'</div>'
-                        .'<div title="'.e($record->indicator->name).'" style="display: block; font-size: 1.125rem; font-weight: 600; color: var(--teal-600);">'.e(Str::limit($record->indicator->name, 130)).'</div>'
+                        .'<div title="'.e($record->indicator->name).'" style="display: block; font-size: 1.125rem; font-weight: 600; color: var(--teal-600);">'.e(Str::limit($record->indicator->name, 100)).'</div>'
                         .'</div>'
                     ))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),

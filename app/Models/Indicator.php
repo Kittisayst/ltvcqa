@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,5 +27,12 @@ class Indicator extends Model
     public function reports(): HasMany
     {
         return $this->hasMany(Report::class);
+    }
+
+    protected function orderedName(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => "{$this->order}. {$this->name}",
+        );
     }
 }

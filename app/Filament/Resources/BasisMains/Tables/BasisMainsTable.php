@@ -2,35 +2,33 @@
 
 namespace App\Filament\Resources\BasisMains\Tables;
 
-use App\Models\Standard;
-use Filament\Actions\BulkActionGroup;
+use App\Filament\Concerns\HasQaHierarchyFilters;
+use App\Models\BasisMain;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 class BasisMainsTable
 {
+    use HasQaHierarchyFilters;
+
     public static function configure(Table $table): Table
     {
         return $table
             ->reorderable('order')
             ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('indicator_id')->orderBy('order'))
-            ->groups([
-                Group::make('indicator.name')
-                    ->label('ຕົວຊີ້ວັດ')
-                    ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('indicator_id', $direction)),
-            ])
-            ->defaultGroup('indicator.name')
             ->columns([
+                TextColumn::make('indicator.standard.name')
+                    ->label('ມາດຕະຖານ')
+                    ->formatStateUsing(fn (BasisMain $record): string => "ມາດຕະຖານ {$record->indicator->standard->ordered_name}")
+                    ->searchable(),
                 TextColumn::make('indicator.name')
                     ->label('ຕົວຊີ້ວັດ')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn (BasisMain $record): string => "ຕົວຊີ້ວັດ {$record->indicator->ordered_name}")
+                    ->limit(50)
+                    ->searchable(),
                 TextColumn::make('title')
                     ->label('ຫຼັກຖານ')
                     ->wrap()
@@ -40,25 +38,21 @@ class BasisMainsTable
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('created_at')
+                    ->label('ສ້າງເມື່ອ')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')
+                    ->label('ແກ້ໄຂເມື່ອ')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->deferFilters(false)
             ->filters([
-                SelectFilter::make('standard_id')
-                    ->label('ມາດຕະຖານ')
-                    ->options(fn () => Standard::orderBy('order')->pluck('name', 'id'))
-                    ->query(fn (Builder $query, array $data) => $query->when(
-                        $data['value'],
-                        fn (Builder $query, $value) => $query->whereHas(
-                            'indicator',
-                            fn (Builder $query) => $query->where('standard_id', $value)
-                        )
-                    )),
+                self::frameworkFilter('indicator.standard', resetsFilters: ['standard_id', 'indicator_id']),
+                self::standardFilter('indicator', scopedByFrameworkFilter: 'framework_id', resetsFilters: ['indicator_id']),
+                self::indicatorFilter(scopedByStandardFilter: 'standard_id'),
             ])
             ->recordActions([
                 EditAction::make(),

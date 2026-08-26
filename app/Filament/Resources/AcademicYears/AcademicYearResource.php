@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AcademicYears;
 
 use App\Filament\Resources\AcademicYears\Pages\ManageAcademicYears;
 use App\Models\AcademicYear;
+use App\Models\QaFramework;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -77,18 +78,17 @@ class AcademicYearResource extends Resource
                     ->icon(Heroicon::OutlinedCheckCircle)
                     ->color('success')
                     ->requiresConfirmation()
+                    ->modalDescription('ຊຸດມາດຕະຖານຂອງປີນີ້ຈະຖືກເຜີຍແຜ່ອັດຕະໂນມັດ (ຖ້າຍັງເປັນຮ່າງ), ຊຸດອື່ນທີ່ເຜີຍແຜ່ຢູ່ຈະປ່ຽນເປັນຮ່າງ, ແລະ ປີການສຶກສາອື່ນຈະປິດການເປັນປັດຈຸບັນ.')
                     ->visible(fn (AcademicYear $record): bool => ! $record->is_active)
                     ->action(function (AcademicYear $record): void {
-                        if ($record->framework->status !== 'published') {
-                            Notification::make()
-                                ->title('ຊຸດມາດຕະຖານຂອງປີການສຶກສານີ້ຍັງບໍ່ໄດ້ເຜີຍແຜ່')
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-
                         DB::transaction(function () use ($record): void {
+                            QaFramework::query()
+                                ->where('status', 'published')
+                                ->whereKeyNot($record->framework_id)
+                                ->update(['status' => 'draft']);
+
+                            $record->framework->update(['status' => 'published']);
+
                             AcademicYear::query()
                                 ->whereKeyNot($record->getKey())
                                 ->update(['is_active' => false]);

@@ -3,11 +3,13 @@
 namespace App\Filament\Resources\QaFrameworks\Tables;
 
 use App\Filament\Resources\QaFrameworks\QaFrameworkResource;
+use App\Models\AcademicYear;
 use App\Models\BasisMain;
 use App\Models\Indicator;
 use App\Models\QaFramework;
 use App\Models\Standard;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -71,6 +73,38 @@ class QaFrameworksTable
                 //
             ])
             ->recordActions([
+                Action::make('publish')
+                    ->label('ເຜີຍແຜ່')
+                    ->icon(Heroicon::OutlinedCheckBadge)
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalDescription('ຊຸດມາດຕະຖານອື່ນທີ່ເຜີຍແຜ່ຢູ່ຈະຖືກປ່ຽນເປັນຮ່າງ, ແລະ ປີການສຶກສາທີ່ໃຊ້ຊຸດນັ້ນຢູ່ຈະຖືກປິດການເປັນປັດຈຸບັນນຳ.')
+                    ->visible(fn (QaFramework $record): bool => $record->status === 'draft')
+                    ->action(function (QaFramework $record): void {
+                        DB::transaction(function () use ($record): void {
+                            $otherPublishedIds = QaFramework::query()
+                                ->where('status', 'published')
+                                ->whereKeyNot($record->getKey())
+                                ->pluck('id');
+
+                            if ($otherPublishedIds->isNotEmpty()) {
+                                QaFramework::query()->whereIn('id', $otherPublishedIds)->update(['status' => 'draft']);
+
+                                AcademicYear::query()
+                                    ->whereIn('framework_id', $otherPublishedIds)
+                                    ->update(['is_active' => false]);
+                            }
+
+                            $record->update(['status' => 'published']);
+                        });
+
+                        AcademicYear::forgetActiveCache();
+
+                        Notification::make()
+                            ->title('ເຜີຍແຜ່ຊຸດມາດຕະຖານແລ້ວ')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('manageStructure')
                     ->label('ຈັດການໂຄງສ້າງ')
                     ->icon(Heroicon::OutlinedListBullet)
@@ -153,8 +187,10 @@ class QaFrameworksTable
                             ->success()
                             ->send();
                     }),
-                EditAction::make(),
-                DeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

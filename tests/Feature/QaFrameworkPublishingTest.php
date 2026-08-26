@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\QaFrameworks\Pages\CreateQaFramework;
 use App\Filament\Resources\QaFrameworks\Pages\EditQaFramework;
+use App\Filament\Resources\QaFrameworks\Pages\ListQaFrameworks;
 use App\Models\AcademicYear;
 use App\Models\QaFramework;
 use Livewire\Livewire;
@@ -136,6 +137,42 @@ it('rejects renaming a framework to a name that already exists', function (): vo
         ->assertHasFormErrors(['name']);
 
     expect($other->fresh()->name)->toBe('ຊຸດມາດຕະຖານ 2026');
+});
+
+it('publishes a draft framework from the table action when none is currently published', function (): void {
+    actingAsSuperAdmin();
+
+    $draft = QaFramework::factory()->draft()->create();
+
+    Livewire::test(ListQaFrameworks::class)
+        ->callTableAction('publish', $draft);
+
+    expect($draft->fresh()->status)->toBe('published');
+});
+
+it('publishing a framework from the table action drafts the previously published one and deactivates its academic year', function (): void {
+    actingAsSuperAdmin();
+
+    $oldFramework = QaFramework::factory()->create(['status' => 'published']);
+    $oldYear = AcademicYear::factory()->for($oldFramework, 'framework')->create(['is_active' => true]);
+
+    $newFramework = QaFramework::factory()->draft()->create();
+
+    Livewire::test(ListQaFrameworks::class)
+        ->callTableAction('publish', $newFramework);
+
+    expect($newFramework->fresh()->status)->toBe('published')
+        ->and($oldFramework->fresh()->status)->toBe('draft')
+        ->and($oldYear->fresh()->is_active)->toBeFalse();
+});
+
+it('hides the publish table action for an already published framework', function (): void {
+    actingAsSuperAdmin();
+
+    $framework = QaFramework::factory()->create(['status' => 'published']);
+
+    Livewire::test(ListQaFrameworks::class)
+        ->assertTableActionHidden('publish', $framework);
 });
 
 it('allows re-saving a framework with its own unchanged name', function (): void {

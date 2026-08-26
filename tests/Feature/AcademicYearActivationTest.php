@@ -22,16 +22,22 @@ it('activates a year with a published framework and deactivates the previously a
         ->and(AcademicYear::active()->id)->toBe($newYear->id);
 });
 
-it('refuses to activate a year whose framework is still a draft', function (): void {
+it('activating a year publishes its still-draft framework and drafts the previously published one', function (): void {
     actingAsSuperAdmin();
 
-    $framework = QaFramework::factory()->create(['status' => 'draft']);
-    $year = AcademicYear::factory()->for($framework, 'framework')->create(['is_active' => false]);
+    $oldFramework = QaFramework::factory()->create(['status' => 'published']);
+    $oldYear = AcademicYear::factory()->for($oldFramework, 'framework')->create(['is_active' => true]);
+
+    $newFramework = QaFramework::factory()->create(['status' => 'draft']);
+    $newYear = AcademicYear::factory()->for($newFramework, 'framework')->create(['is_active' => false]);
 
     Livewire::test(ManageAcademicYears::class)
-        ->callTableAction('activate', $year);
+        ->callTableAction('activate', $newYear);
 
-    expect($year->fresh()->is_active)->toBeFalse();
+    expect($newYear->fresh()->is_active)->toBeTrue()
+        ->and($newFramework->fresh()->status)->toBe('published')
+        ->and($oldYear->fresh()->is_active)->toBeFalse()
+        ->and($oldFramework->fresh()->status)->toBe('draft');
 });
 
 it('hides the activate action for the already active year', function (): void {
