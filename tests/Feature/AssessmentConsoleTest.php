@@ -206,6 +206,28 @@ it('lists the department evidence for the indicator inside the evaluate modal', 
         ->toContain('ຍັງບໍ່ມີຫຼັກຖານ');
 });
 
+it('does not create a report when a department-staff user opens the read-only modal', function (): void {
+    $department = Department::factory()->create();
+    actingAsDepartmentStaff($department);
+    ['indicators' => $indicators] = assessmentFixture();
+
+    Livewire::test(ListReports::class)
+        ->mountTableAction('evaluate', $indicators->first()->id);
+
+    expect(Report::count())->toBe(0);
+});
+
+it('rejects a score with more than two decimal places', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->callTableAction('evaluate', $indicators->first()->id, ['status' => 'draft', 'score' => 87.555])
+        ->assertHasTableActionErrors(['score']);
+});
+
 it('gives department staff a read-only evaluate modal that cannot persist changes', function (): void {
     $department = Department::factory()->create();
     actingAsDepartmentStaff($department);

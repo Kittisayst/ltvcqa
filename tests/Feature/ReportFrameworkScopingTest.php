@@ -27,13 +27,24 @@ function scopedConsole(): array
     return ['year' => $year, 'department' => $department, 'indicator' => $indicator];
 }
 
-it('creates a framework-consistent report the first time the evaluate action is opened', function (): void {
+it('does not create a report merely by opening the evaluate modal', function (): void {
+    actingAsSuperAdmin();
+    ['department' => $department, 'indicator' => $indicator] = scopedConsole();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->mountTableAction('evaluate', $indicator->id);
+
+    assertDatabaseCount(Report::class, 0);
+});
+
+it('creates a framework-consistent report when the evaluate action is saved', function (): void {
     actingAsSuperAdmin();
     ['year' => $year, 'department' => $department, 'indicator' => $indicator] = scopedConsole();
 
     Livewire::test(ListReports::class)
         ->set('tableFilters.department_id.value', $department->id)
-        ->mountTableAction('evaluate', $indicator->id);
+        ->callTableAction('evaluate', $indicator->id, ['status' => 'draft']);
 
     assertDatabaseCount(Report::class, 1);
 
@@ -80,7 +91,7 @@ it('rejects a submitted status with no score', function (): void {
         ])
         ->assertHasTableActionErrors(['score']);
 
-    expect(Report::first()->status)->toBe('draft');
+    assertDatabaseCount(Report::class, 0);
 });
 
 it('never creates a second report for the same indicator, department and year', function (): void {

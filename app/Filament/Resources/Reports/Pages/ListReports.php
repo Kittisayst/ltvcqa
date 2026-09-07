@@ -37,8 +37,71 @@ class ListReports extends ListRecords
 {
     protected static string $resource = ReportResource::class;
 
+    /** Report status => Lao badge label; a missing status reads as "not assessed". */
+    private const STATUS_LABELS = [
+        'draft' => 'ຮ່າງ',
+        'submitted' => 'ສົ່ງແລ້ວ',
+        'approved' => 'ອະນຸມັດ',
+    ];
+
+    private const NOT_ASSESSED_LABEL = 'ຍັງບໍ່ໄດ້ປະເມີນ';
+
     /** @var array<int, HtmlString> group-title cache, keyed by standard id */
     private array $standardGroupTitleCache = [];
+
+    private function statusLabel(?string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? self::NOT_ASSESSED_LABEL;
+    }
+
+    private function statusColor(?string $status): string
+    {
+        return match ($status) {
+            'submitted' => 'warning',
+            'approved' => 'success',
+            'draft' => 'gray',
+            default => 'danger',
+        };
+    }
+
+    /** Reports in the current department + academic-year scope. Never creates. */
+    private function scopedReports(): Builder
+    {
+        return Report::query()
+            ->where('department_id', $this->resolveDepartmentId())
+            ->where('academic_year_id', $this->resolveAcademicYearId());
+    }
+
+    /**
+     * Constrains a `reports` relation/query to the current scope. Works for
+     * both eager-load closures (Relation) and whereHas closures (Builder).
+     *
+     * @template T of \Illuminate\Database\Eloquent\Relations\Relation|Builder
+     *
+     * @param  T  $relation
+     * @return T
+     */
+    private function constrainReportsToScope($relation)
+    {
+        return $relation
+            ->where('department_id', $this->resolveDepartmentId())
+            ->where('academic_year_id', $this->resolveAcademicYearId());
+    }
+
+    /**
+     * Constrains a `documents` relation/query to the scoped department + year.
+     *
+     * @template T of \Illuminate\Database\Eloquent\Relations\Relation|Builder
+     *
+     * @param  T  $relation
+     * @return T
+     */
+    private function constrainDocumentsToScope($relation)
+    {
+        return $relation
+            ->where('academic_year_id', $this->resolveAcademicYearId())
+            ->whereHas('user', fn (Builder $user) => $user->where('department_id', $this->resolveDepartmentId()));
+    }
 
     public function getTitle(): string
     {
@@ -85,11 +148,7 @@ class ListReports extends ListRecords
             return $indicator->reports->first();
         }
 
-        return Report::query()
-            ->where('indicator_id', $indicator->id)
-            ->where('department_id', $this->resolveDepartmentId())
-            ->where('academic_year_id', $this->resolveAcademicYearId())
-            ->first();
+        return $this->scopedReports()->where('indicator_id', $indicator->id)->first();
     }
 
     private function resolveAcademicYearId(): ?int
@@ -127,14 +186,9 @@ class ListReports extends ListRecords
                     ->with([
                         'standard',
                         'basisMains' => fn ($relation) => $relation->with([
-                            'documents' => fn ($documents) => $documents
-                                ->where('academic_year_id', $yearId)
-                                ->whereHas('user', fn ($user) => $user->where('department_id', $departmentId)),
+                            'documents' => fn ($documents) => $this->constrainDocumentsToScope($documents),
                         ]),
-                        'reports' => fn ($relation) => $relation
-                            ->where('department_id', $departmentId)
-                            ->where('academic_year_id', $yearId)
-                            ->with('assessor'),
+                        'reports' => fn ($relation) => $this->constrainReportsToScope($relation)->with('assessor'),
                     ]);
 
                 if (! $year || ! $departmentId) {
@@ -182,17 +236,11 @@ class ListReports extends ListRecords
                             return $query;
                         }
 
-                        $departmentId = $this->resolveDepartmentId();
-                        $yearId = $this->resolveAcademicYearId();
-                        $scoped = fn ($relation) => $relation
-                            ->where('department_id', $departmentId)
-                            ->where('academic_year_id', $yearId);
-
                         if ($value === 'not_assessed') {
-                            return $query->whereDoesntHave('reports', $scoped);
+                            return $query->whereDoesntHave('reports', fn (Builder $relation) => $this->constrainReportsToScope($relation));
                         }
 
-                        return $query->whereHas('reports', fn ($relation) => $scoped($relation)->where('status', $value));
+                        return $query->whereHas('reports', fn (Builder $relation) => $this->constrainReportsToScope($relation)->where('status', $value));
                     }),
             ])
             ->columns([
@@ -216,22 +264,12 @@ class ListReports extends ListRecords
                 TextColumn::make('assessment_status')
                     ->label('ສະຖານະ')
                     ->badge()
-                    ->state(fn (Indicator $record): string => match ($record->reports->first()?->status) {
-                        'submitted' => 'ສົ່ງແລ້ວ',
-                        'approved' => 'ອະນຸມັດ',
-                        'draft' => 'ຮ່າງ',
-                        default => 'ຍັງບໍ່ໄດ້ປະເມີນ',
-                    })
-                    ->color(fn (Indicator $record): string => match ($record->reports->first()?->status) {
-                        'submitted' => 'warning',
-                        'approved' => 'success',
-                        'draft' => 'gray',
-                        default => 'danger',
-                    }),
+                    ->state(fn (Indicator $record): string => $this->statusLabel($record->reports->first()?->status))
+                    ->color(fn (Indicator $record): string => $this->statusColor($record->reports->first()?->status)),
                 TextColumn::make('score')
                     ->label('ຄະແນນ')
-                    ->state(fn (Indicator $record): string => $record->reports->first()?->score !== null
-                        ? (string) $record->reports->first()->score
+                    ->state(fn (Indicator $record): string => ($score = $record->reports->first()?->score) !== null
+                        ? (string) $score
                         : '-')
                     ->alignEnd(),
                 TextColumn::make('assessor')
@@ -279,15 +317,18 @@ class ListReports extends ListRecords
             ->modalSubmitActionLabel('ບັນທຶກ')
             ->modalSubmitAction(fn () => $this->canEvaluate() ? null : false)
             ->disabledForm(fn (): bool => ! $this->canEvaluate())
+            // Read-only: never create a Report just by opening the modal —
+            // an existing one pre-fills, otherwise the fields start blank.
+            // The Report is only created on save, in ->action().
             ->fillForm(function (Indicator $record): array {
-                $report = $this->reportForIndicator($record);
+                $report = $this->existingReportForIndicator($record);
 
                 return [
-                    'score' => $report->score,
-                    'good_point' => $report->good_point,
-                    'remain_point' => $report->remain_point,
-                    'proposal' => $report->proposal,
-                    'status' => in_array($report->status, ['draft', 'submitted'], true) ? $report->status : 'draft',
+                    'score' => $report?->score,
+                    'good_point' => $report?->good_point,
+                    'remain_point' => $report?->remain_point,
+                    'proposal' => $report?->proposal,
+                    'status' => in_array($report?->status, ['draft', 'submitted'], true) ? $report->status : 'draft',
                 ];
             })
             ->schema([
@@ -312,7 +353,8 @@ class ListReports extends ListRecords
                     ->minValue(0)
                     ->maxValue(100)
                     ->step(0.01)
-                    ->helperText('0–100')
+                    ->rule('decimal:0,2')
+                    ->helperText('0–100 (ທົດສະນິຍົມບໍ່ເກີນ 2 ຕຳແໜ່ງ)')
                     ->required(fn (Get $get): bool => $get('status') !== 'draft'),
                 Textarea::make('good_point')->label('ຈຸດດີ')->columnSpanFull(),
                 Textarea::make('remain_point')->label('ຂໍ້ຄົງຄ້າງ')->columnSpanFull(),
@@ -344,15 +386,10 @@ class ListReports extends ListRecords
 
     private function buildStandardGroupTitle(Standard $standard): HtmlString
     {
-        $departmentId = $this->resolveDepartmentId();
-        $yearId = $this->resolveAcademicYearId();
-
         $indicatorCount = $standard->indicators()->count();
 
-        $average = Report::query()
-            ->whereHas('indicator', fn ($relation) => $relation->where('standard_id', $standard->id))
-            ->where('department_id', $departmentId)
-            ->where('academic_year_id', $yearId)
+        $average = $this->scopedReports()
+            ->whereHas('indicator', fn (Builder $relation) => $relation->where('standard_id', $standard->id))
             ->whereNotNull('score')
             ->avg('score');
 
@@ -380,13 +417,10 @@ class ListReports extends ListRecords
         }
 
         $totalIndicators = Indicator::query()
-            ->whereHas('standard', fn ($relation) => $relation->where('framework_id', $year->framework_id))
+            ->whereHas('standard', fn (Builder $relation) => $relation->where('framework_id', $year->framework_id))
             ->count();
 
-        $reports = Report::query()
-            ->where('department_id', $departmentId)
-            ->where('academic_year_id', $yearId)
-            ->get(['status', 'score']);
+        $reports = $this->scopedReports()->get(['status', 'score']);
 
         $averageScore = $reports->whereNotNull('score')->avg('score');
 
@@ -406,16 +440,9 @@ class ListReports extends ListRecords
      */
     private function evidencePanelContent(Indicator $record): HtmlString
     {
-        $departmentId = $this->resolveDepartmentId();
-        $yearId = $this->resolveAcademicYearId();
-
         $basisMains = $record->basisMains()
             ->orderBy('order')
-            ->with(['documents' => fn ($documents) => $documents
-                ->where('academic_year_id', $yearId)
-                ->whereHas('user', fn ($user) => $user->where('department_id', $departmentId))
-                ->with('files'),
-            ])
+            ->with(['documents' => fn ($documents) => $this->constrainDocumentsToScope($documents)->with('files')])
             ->get();
 
         if ($basisMains->isEmpty()) {
