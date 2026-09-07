@@ -77,6 +77,11 @@ class ListReports extends ListRecords
                     ->orderBy('indicators.order')
                     ->with([
                         'standard',
+                        'basisMains' => fn ($relation) => $relation->with([
+                            'documents' => fn ($documents) => $documents
+                                ->where('academic_year_id', $yearId)
+                                ->whereHas('user', fn ($user) => $user->where('department_id', $departmentId)),
+                        ]),
                         'reports' => fn ($relation) => $relation
                             ->where('department_id', $departmentId)
                             ->where('academic_year_id', $yearId)
@@ -123,6 +128,18 @@ class ListReports extends ListRecords
                     ->state(fn (Indicator $record): string => "{$record->order}. {$record->name}")
                     ->wrap()
                     ->searchable(),
+                TextColumn::make('evidence_progress')
+                    ->label('ຄວາມຄືບໜ້າຫຼັກຖານ')
+                    ->badge()
+                    ->color('gray')
+                    ->state(function (Indicator $record): string {
+                        $total = $record->basisMains->count();
+                        $withEvidence = $record->basisMains
+                            ->filter(fn ($basisMain) => $basisMain->documents->isNotEmpty())
+                            ->count();
+
+                        return "{$withEvidence} / {$total} ຫຼັກຖານ";
+                    }),
                 TextColumn::make('assessment_status')
                     ->label('ສະຖານະ')
                     ->badge()

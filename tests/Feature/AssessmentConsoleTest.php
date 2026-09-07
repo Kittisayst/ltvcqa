@@ -2,12 +2,16 @@
 
 use App\Filament\Resources\Reports\Pages\ListReports;
 use App\Models\AcademicYear;
+use App\Models\BasisMain;
 use App\Models\Department;
+use App\Models\Document;
 use App\Models\Indicator;
 use App\Models\QaFramework;
 use App\Models\Report;
 use App\Models\Standard;
+use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 beforeEach(fn () => AcademicYear::forgetActiveCache());
@@ -106,6 +110,55 @@ it('locks a department-staff user to their own department', function (): void {
     Livewire::test(ListReports::class)
         ->assertCanSeeTableRecords($indicators)
         ->assertSee('ອະນຸມັດ');
+});
+
+it('shows evidence progress per indicator scoped to the selected department and year', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+    $indicator = $indicators->first();
+
+    $basisMainA = BasisMain::factory()->for($indicator)->create();
+    $basisMainB = BasisMain::factory()->for($indicator)->create();
+
+    $ownStaff = User::factory()->for($department)->create();
+    Document::factory()->for($ownStaff, 'user')->for($year, 'academicYear')->for($basisMainA, 'basisMain')->create();
+
+    // Another department's document on basisMainB must not count.
+    $otherStaff = User::factory()->for(Department::factory())->create();
+    Document::factory()->for($otherStaff, 'user')->for($year, 'academicYear')->for($basisMainB, 'basisMain')->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertSee('1 / 2 ຫຼັກຖານ');
+});
+
+it('renders the console without an N+1 as indicators grow', function (): void {
+    actingAsAssessor();
+    $department = Department::factory()->create();
+
+    $framework = QaFramework::factory()->create();
+    AcademicYear::factory()->for($framework, 'framework')->create(['is_active' => true]);
+    $standard = Standard::factory()->for($framework, 'framework')->create();
+
+    $countQueries = function () use ($department): int {
+        AcademicYear::forgetActiveCache();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        Livewire::test(ListReports::class)->set('tableFilters.department_id.value', $department->id);
+        $count = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        return $count;
+    };
+
+    Indicator::factory()->for($standard)->hasBasisMains(2)->create();
+    $withOne = $countQueries();
+
+    Indicator::factory()->for($standard)->count(5)->hasBasisMains(2)->create();
+    $withSix = $countQueries();
+
+    expect($withSix - $withOne)->toBeLessThanOrEqual(2);
 });
 
 it('shows an empty state prompt when no academic year is resolved', function (): void {
