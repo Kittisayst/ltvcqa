@@ -71,6 +71,23 @@ class ListReports extends ListRecords
         ]);
     }
 
+    /**
+     * The Report for one Indicator in the current scope, without creating
+     * one — uses the eager-loaded relation on a table row where present.
+     */
+    private function existingReportForIndicator(Indicator $indicator): ?Report
+    {
+        if ($indicator->relationLoaded('reports')) {
+            return $indicator->reports->first();
+        }
+
+        return Report::query()
+            ->where('indicator_id', $indicator->id)
+            ->where('department_id', $this->resolveDepartmentId())
+            ->where('academic_year_id', $this->resolveAcademicYearId())
+            ->first();
+    }
+
     private function resolveAcademicYearId(): ?int
     {
         return $this->tableFilters['academic_year_id']['value']
@@ -186,8 +203,28 @@ class ListReports extends ListRecords
             ])
             ->recordActions([
                 $this->evaluateAction(),
+                $this->approveAction(),
             ])
             ->emptyStateHeading(fn (): string => $this->emptyStateHeading());
+    }
+
+    private function approveAction(): Action
+    {
+        return Action::make('approve')
+            ->label('ອະນຸມັດ')
+            ->icon(Heroicon::OutlinedCheckBadge)
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalHeading('ອະນຸມັດບົດລາຍງານປະເມີນ')
+            ->visible(fn (Indicator $record): bool => (Auth::user()?->hasRole('super_admin') ?? false)
+                && $this->existingReportForIndicator($record)?->status === 'submitted')
+            ->action(function (Indicator $record): void {
+                $report = $this->existingReportForIndicator($record);
+
+                if ($report?->status === 'submitted') {
+                    $report->update(['status' => 'approved']);
+                }
+            });
     }
 
     private function evaluateAction(): Action

@@ -6,19 +6,20 @@ use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 use Spatie\Permission\Models\Role;
 
-it('notifies every assessor when a report is submitted', function (): void {
-    $assessorRole = Role::findOrCreate('assessor', 'web');
-    $assessorOne = User::factory()->create()->assignRole($assessorRole);
-    $assessorTwo = User::factory()->create()->assignRole($assessorRole);
-    $nonAssessor = User::factory()->create();
+it('notifies every super_admin when a report is submitted', function (): void {
+    $superAdminRole = Role::findOrCreate('super_admin', 'web');
+    $superAdminOne = User::factory()->create()->assignRole($superAdminRole);
+    $superAdminTwo = User::factory()->create()->assignRole($superAdminRole);
+
+    $assessor = User::factory()->create()->assignRole(Role::findOrCreate('assessor', 'web'));
 
     $report = Report::factory()->create(['status' => 'draft']);
 
     $report->update(['status' => 'submitted']);
 
-    expect(DatabaseNotification::where('notifiable_id', $assessorOne->id)->count())->toBe(1)
-        ->and(DatabaseNotification::where('notifiable_id', $assessorTwo->id)->count())->toBe(1)
-        ->and(DatabaseNotification::where('notifiable_id', $nonAssessor->id)->count())->toBe(0);
+    expect(DatabaseNotification::where('notifiable_id', $superAdminOne->id)->count())->toBe(1)
+        ->and(DatabaseNotification::where('notifiable_id', $superAdminTwo->id)->count())->toBe(1)
+        ->and(DatabaseNotification::where('notifiable_id', $assessor->id)->count())->toBe(0);
 });
 
 it('notifies department-staff in the report department when a report is approved', function (): void {

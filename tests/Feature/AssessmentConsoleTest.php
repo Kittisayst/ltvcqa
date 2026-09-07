@@ -215,6 +215,47 @@ it('hides the evaluate action from department staff', function (): void {
         ->assertTableActionHidden('evaluate', $indicators->first());
 });
 
+it('shows the approve action only to super_admin on submitted reports and it approves', function (): void {
+    $superAdmin = actingAsSuperAdmin();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+    $indicator = $indicators->first();
+
+    $submitted = Report::factory()->create([
+        'indicator_id' => $indicator->id,
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'status' => 'submitted',
+        'assessor_id' => User::factory()->create()->id,
+    ]);
+    $assessorId = $submitted->assessor_id;
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertTableActionVisible('approve', $indicator)
+        ->callTableAction('approve', $indicator->id);
+
+    expect($submitted->fresh()->status)->toBe('approved')
+        ->and($submitted->fresh()->assessor_id)->toBe($assessorId);
+});
+
+it('hides the approve action from assessors and on non-submitted reports', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Report::factory()->create([
+        'indicator_id' => $indicators->first()->id,
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'status' => 'submitted',
+    ]);
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertTableActionHidden('approve', $indicators->first());
+});
+
 it('shows an empty state prompt when no academic year is resolved', function (): void {
     actingAsAssessor();
     // No academic year at all.

@@ -26,17 +26,17 @@ class ReportObserver
 
     private function notifySubmitted(Report $report): void
     {
-        $assessors = User::whereHas('roles', fn ($query) => $query->where('name', 'assessor'))->get();
+        $approvers = User::whereHas('roles', fn ($query) => $query->where('name', 'super_admin'))->get();
 
-        if ($assessors->isEmpty()) {
+        if ($approvers->isEmpty()) {
             return;
         }
 
         Notification::make()
-            ->title('ມີບົດລາຍງານໃໝ່ລໍຖ້າການປະເມີນ')
+            ->title('ມີບົດລາຍງານລໍຖ້າການອະນຸມັດ')
             ->body("ບົດລາຍງານຂອງ {$report->department->name} - {$report->indicator->name}")
             ->info()
-            ->sendToDatabase($assessors);
+            ->sendToDatabase($approvers);
     }
 
     private function notifyApproved(Report $report): void
