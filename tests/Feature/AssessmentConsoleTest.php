@@ -206,13 +206,67 @@ it('lists the department evidence for the indicator inside the evaluate modal', 
         ->toContain('ຍັງບໍ່ມີຫຼັກຖານ');
 });
 
-it('hides the evaluate action from department staff', function (): void {
+it('gives department staff a read-only evaluate modal that cannot persist changes', function (): void {
     $department = Department::factory()->create();
     actingAsDepartmentStaff($department);
-    ['indicators' => $indicators] = assessmentFixture();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $indicator = $indicators->first();
+
+    $report = Report::factory()->create([
+        'indicator_id' => $indicator->id,
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'status' => 'draft',
+        'score' => 55,
+    ]);
 
     Livewire::test(ListReports::class)
-        ->assertTableActionHidden('evaluate', $indicators->first());
+        ->assertTableActionVisible('evaluate', $indicator)
+        ->callTableAction('evaluate', $indicator->id, ['status' => 'submitted', 'score' => 99]);
+
+    expect($report->fresh()->score)->toEqual(55)
+        ->and($report->fresh()->status)->toBe('draft');
+});
+
+it('shows a scope summary line and per-standard averages', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Report::factory()->create([
+        'indicator_id' => $indicators[0]->id, 'department_id' => $department->id,
+        'academic_year_id' => $year->id, 'status' => 'approved', 'score' => 80,
+    ]);
+    Report::factory()->create([
+        'indicator_id' => $indicators[1]->id, 'department_id' => $department->id,
+        'academic_year_id' => $year->id, 'status' => 'draft', 'score' => 60,
+    ]);
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertSee('ປະເມີນແລ້ວ 2/4 ຕົວຊີ້ວັດ')
+        ->assertSee('ອະນຸມັດ 1')
+        ->assertSee('ຄະແນນສະເລ່ຍ 70.0');
+});
+
+it('filters rows by assessment state', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Report::factory()->create([
+        'indicator_id' => $indicators[0]->id, 'department_id' => $department->id,
+        'academic_year_id' => $year->id, 'status' => 'approved', 'score' => 80,
+    ]);
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->set('tableFilters.assessment_state.value', 'approved')
+        ->assertCanSeeTableRecords([$indicators[0]])
+        ->assertCanNotSeeTableRecords([$indicators[1], $indicators[2], $indicators[3]])
+        ->set('tableFilters.assessment_state.value', 'not_assessed')
+        ->assertCanNotSeeTableRecords([$indicators[0]])
+        ->assertCanSeeTableRecords([$indicators[1], $indicators[2], $indicators[3]]);
 });
 
 it('shows the approve action only to super_admin on submitted reports and it approves', function (): void {

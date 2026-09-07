@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\DocumentFile;
 use App\Models\Indicator;
 use App\Models\Report;
+use App\Models\Standard;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -35,6 +36,9 @@ use Illuminate\Support\Str;
 class ListReports extends ListRecords
 {
     protected static string $resource = ReportResource::class;
+
+    /** @var array<int, HtmlString> group-title cache, keyed by standard id */
+    private array $standardGroupTitleCache = [];
 
     public function getTitle(): string
     {
@@ -143,16 +147,13 @@ class ListReports extends ListRecords
                 Group::make('standard.name')
                     ->label('ມາດຕະຖານ')
                     ->titlePrefixedWithLabel(false)
-                    ->getTitleFromRecordUsing(fn (Indicator $record): HtmlString => new HtmlString(
-                        '<span style="font-size: 1.05rem; font-weight: 600; color: var(--amber-600);">'
-                        .'ມາດຕະຖານທີ '.$record->standard->order.': '.e(Str::limit($record->standard->name, 120))
-                        .'</span>'
-                    ))
+                    ->getTitleFromRecordUsing(fn (Indicator $record): HtmlString => $this->standardGroupTitle($record->standard))
                     ->orderQueryUsing(fn (Builder $query, string $direction) => $query->orderBy('standards.order', $direction)),
             ])
             ->defaultGroup('standard.name')
             ->deferFilters(false)
             ->defaultPaginationPageOption(50)
+            ->description(fn (): ?string => $this->summaryLine())
             ->filters([
                 SelectFilter::make('academic_year_id')
                     ->label('ປີການສຶກສາ')
@@ -166,6 +167,33 @@ class ListReports extends ListRecords
                     ->visible(fn (): bool => ! $this->isDepartmentStaff())
                     ->searchable()
                     ->query(fn (Builder $query): Builder => $query),
+                SelectFilter::make('assessment_state')
+                    ->label('ສະຖານະການປະເມີນ')
+                    ->options([
+                        'not_assessed' => 'ຍັງບໍ່ໄດ້ປະເມີນ',
+                        'draft' => 'ຮ່າງ',
+                        'submitted' => 'ສົ່ງແລ້ວ',
+                        'approved' => 'ອະນຸມັດ',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        $departmentId = $this->resolveDepartmentId();
+                        $yearId = $this->resolveAcademicYearId();
+                        $scoped = fn ($relation) => $relation
+                            ->where('department_id', $departmentId)
+                            ->where('academic_year_id', $yearId);
+
+                        if ($value === 'not_assessed') {
+                            return $query->whereDoesntHave('reports', $scoped);
+                        }
+
+                        return $query->whereHas('reports', fn ($relation) => $scoped($relation)->where('status', $value));
+                    }),
             ])
             ->columns([
                 TextColumn::make('name')
@@ -200,6 +228,20 @@ class ListReports extends ListRecords
                         'draft' => 'gray',
                         default => 'danger',
                     }),
+                TextColumn::make('score')
+                    ->label('ຄະແນນ')
+                    ->state(fn (Indicator $record): string => $record->reports->first()?->score !== null
+                        ? (string) $record->reports->first()->score
+                        : '-')
+                    ->alignEnd(),
+                TextColumn::make('assessor')
+                    ->label('ຜູ້ປະເມີນ')
+                    ->state(fn (Indicator $record): string => $record->reports->first()?->assessor?->name ?? '-'),
+                TextColumn::make('updated_at')
+                    ->label('ອັບເດດຫຼ້າສຸດ')
+                    ->state(fn (Indicator $record) => $record->reports->first()?->updated_at)
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
                 $this->evaluateAction(),
@@ -230,11 +272,13 @@ class ListReports extends ListRecords
     private function evaluateAction(): Action
     {
         return Action::make('evaluate')
-            ->label('ປະເມີນ')
+            ->label(fn (): string => $this->canEvaluate() ? 'ປະເມີນ' : 'ເບິ່ງການປະເມີນ')
             ->icon(Heroicon::OutlinedClipboardDocumentCheck)
-            ->visible(fn (): bool => $this->canEvaluate())
+            ->visible(fn (): bool => $this->canEvaluate() || $this->isDepartmentStaff())
             ->modalHeading('ປະເມີນຕົວຊີ້ວັດ')
             ->modalSubmitActionLabel('ບັນທຶກ')
+            ->modalSubmitAction(fn () => $this->canEvaluate() ? null : false)
+            ->disabledForm(fn (): bool => ! $this->canEvaluate())
             ->fillForm(function (Indicator $record): array {
                 $report = $this->reportForIndicator($record);
 
@@ -279,6 +323,10 @@ class ListReports extends ListRecords
                     ->columnSpanFull(),
             ])
             ->action(function (Indicator $record, array $data): void {
+                if (! $this->canEvaluate()) {
+                    return;
+                }
+
                 $report = $this->reportForIndicator($record);
 
                 if (Auth::user()->hasRole('assessor')) {
@@ -287,6 +335,68 @@ class ListReports extends ListRecords
 
                 $report->update($data);
             });
+    }
+
+    private function standardGroupTitle(Standard $standard): HtmlString
+    {
+        return $this->standardGroupTitleCache[$standard->id] ??= $this->buildStandardGroupTitle($standard);
+    }
+
+    private function buildStandardGroupTitle(Standard $standard): HtmlString
+    {
+        $departmentId = $this->resolveDepartmentId();
+        $yearId = $this->resolveAcademicYearId();
+
+        $indicatorCount = $standard->indicators()->count();
+
+        $average = Report::query()
+            ->whereHas('indicator', fn ($relation) => $relation->where('standard_id', $standard->id))
+            ->where('department_id', $departmentId)
+            ->where('academic_year_id', $yearId)
+            ->whereNotNull('score')
+            ->avg('score');
+
+        return new HtmlString(
+            '<span style="font-size: 1.05rem; font-weight: 600; color: var(--amber-600);">'
+            .'ມາດຕະຖານທີ '.$standard->order.': '.e(Str::limit($standard->name, 120))
+            .'</span> <span style="color: var(--gray-500); font-size: 0.85rem;">('
+            .$indicatorCount.' ຕົວຊີ້ວັດ · ຄະແນນສະເລ່ຍ '.($average !== null ? number_format((float) $average, 1) : '-')
+            .')</span>'
+        );
+    }
+
+    /**
+     * "assessed X / Y · approved Z · avg score" for the current scope, or
+     * null while the scope is incomplete.
+     */
+    private function summaryLine(): ?string
+    {
+        $yearId = $this->resolveAcademicYearId();
+        $departmentId = $this->resolveDepartmentId();
+        $year = $yearId ? AcademicYear::find($yearId) : null;
+
+        if (! $year || ! $departmentId) {
+            return null;
+        }
+
+        $totalIndicators = Indicator::query()
+            ->whereHas('standard', fn ($relation) => $relation->where('framework_id', $year->framework_id))
+            ->count();
+
+        $reports = Report::query()
+            ->where('department_id', $departmentId)
+            ->where('academic_year_id', $yearId)
+            ->get(['status', 'score']);
+
+        $averageScore = $reports->whereNotNull('score')->avg('score');
+
+        return sprintf(
+            'ປະເມີນແລ້ວ %d/%d ຕົວຊີ້ວັດ · ອະນຸມັດ %d · ຄະແນນສະເລ່ຍ %s',
+            $reports->count(),
+            $totalIndicators,
+            $reports->where('status', 'approved')->count(),
+            $averageScore !== null ? number_format((float) $averageScore, 1) : '-',
+        );
     }
 
     /**

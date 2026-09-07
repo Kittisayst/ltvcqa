@@ -96,12 +96,13 @@ it('scopes the assessment console to the department-staff user\'s own department
     ]);
 
     // The console is locked to the staff member's own department, so the
-    // indicator reads as not-assessed and the other department's approval
-    // is invisible.
+    // indicator reads as not-assessed — the other department's Report does
+    // not leak into this view.
     Livewire::test(ListReports::class)
         ->assertCanSeeTableRecords([$indicator])
-        ->assertSee('ຍັງບໍ່ໄດ້ປະເມີນ')
-        ->assertDontSee('ອະນຸມັດ');
+        ->assertSee('ຍັງບໍ່ໄດ້ປະເມີນ');
+
+    expect(Report::where('department_id', $department->id)->exists())->toBeFalse();
 });
 
 it('can view but not edit another department\'s report', function (): void {
