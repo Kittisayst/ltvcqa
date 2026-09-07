@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Reports;
 
-use App\Filament\Resources\Reports\Pages\CreateReport;
 use App\Filament\Resources\Reports\Pages\EditReport;
 use App\Filament\Resources\Reports\Pages\ListReports;
 use App\Filament\Resources\Reports\Pages\ViewReport;
@@ -51,7 +50,6 @@ class ReportResource extends Resource
     {
         return [
             'index' => ListReports::route('/'),
-            'create' => CreateReport::route('/create'),
             'view' => ViewReport::route('/{record}'),
             'edit' => EditReport::route('/{record}/edit'),
         ];

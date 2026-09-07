@@ -2,7 +2,7 @@
 
 use App\Filament\Resources\Documents\DocumentResource;
 use App\Filament\Resources\Documents\Pages\ListDocuments;
-use App\Filament\Resources\Reports\Pages\CreateReport;
+use App\Filament\Resources\Reports\Pages\EditReport;
 use App\Filament\Resources\Reports\Pages\ListReports;
 use App\Filament\Resources\Reports\ReportResource;
 use App\Filament\Resources\Standards\StandardResource;
@@ -52,28 +52,29 @@ it('is forbidden from the standards master-data resource', function (): void {
         ->assertForbidden();
 });
 
-it('forces the report department to its own department regardless of submitted value', function (): void {
+it('forces the report department back to its own when editing its own report', function (): void {
     $department = Department::factory()->create();
-    $staff = actingAsDepartmentStaff($department);
+    actingAsDepartmentStaff($department);
     $otherDepartment = Department::factory()->create();
 
-    $standard = Standard::factory()->create();
+    $framework = QaFramework::factory()->create();
+    $year = AcademicYear::factory()->create(['framework_id' => $framework->id]);
+    $standard = Standard::factory()->create(['framework_id' => $framework->id]);
     $indicator = Indicator::factory()->create(['standard_id' => $standard->id]);
-    $academicYear = AcademicYear::factory()->create(['framework_id' => $standard->framework_id]);
 
-    Livewire::test(CreateReport::class)
-        ->fillForm([
-            'academic_year_id' => $academicYear->id,
-            'department_id' => $otherDepartment->id,
-            'indicator_id' => $indicator->id,
-            'status' => 'draft',
-        ])
-        ->call('create')
+    $report = Report::factory()->create([
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'indicator_id' => $indicator->id,
+        'status' => 'draft',
+    ]);
+
+    Livewire::test(EditReport::class, ['record' => $report->id])
+        ->fillForm(['department_id' => $otherDepartment->id])
+        ->call('save')
         ->assertHasNoFormErrors();
 
-    $report = Report::first();
-
-    expect($report->department_id)->toBe($department->id);
+    expect($report->fresh()->department_id)->toBe($department->id);
 });
 
 it('scopes the assessment console to the department-staff user\'s own department', function (): void {

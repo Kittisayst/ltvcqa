@@ -161,6 +161,31 @@ it('renders the console without an N+1 as indicators grow', function (): void {
     expect($withSix - $withOne)->toBeLessThanOrEqual(2);
 });
 
+it('stamps the current assessor when they save the evaluate modal', function (): void {
+    $assessor = actingAsAssessor();
+    ['indicators' => $indicators] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->callTableAction('evaluate', $indicators->first()->id, [
+            'status' => 'submitted',
+            'score' => 70,
+        ])
+        ->assertHasNoTableActionErrors();
+
+    expect(Report::first()->assessor_id)->toBe($assessor->id);
+});
+
+it('hides the evaluate action from department staff', function (): void {
+    $department = Department::factory()->create();
+    actingAsDepartmentStaff($department);
+    ['indicators' => $indicators] = assessmentFixture();
+
+    Livewire::test(ListReports::class)
+        ->assertTableActionHidden('evaluate', $indicators->first());
+});
+
 it('shows an empty state prompt when no academic year is resolved', function (): void {
     actingAsAssessor();
     // No academic year at all.

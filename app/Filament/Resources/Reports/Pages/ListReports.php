@@ -6,8 +6,15 @@ use App\Filament\Resources\Reports\ReportResource;
 use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\Indicator;
-use Filament\Actions\CreateAction;
+use App\Models\Report;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
@@ -33,14 +40,32 @@ class ListReports extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-            CreateAction::make(),
-        ];
+        return [];
     }
 
     private function isDepartmentStaff(): bool
     {
         return Auth::user()?->hasRole('department-staff') ?? false;
+    }
+
+    private function canEvaluate(): bool
+    {
+        return Auth::user()?->hasAnyRole(['assessor', 'super_admin']) ?? false;
+    }
+
+    /**
+     * Resolves (creating on first use) the Report for one Indicator in the
+     * currently scoped department + academic year. The three ids are the
+     * console's scope, so the Report is always framework-consistent and
+     * unique by construction.
+     */
+    private function reportForIndicator(Indicator $indicator): Report
+    {
+        return Report::firstOrCreate([
+            'indicator_id' => $indicator->id,
+            'department_id' => $this->resolveDepartmentId(),
+            'academic_year_id' => $this->resolveAcademicYearId(),
+        ]);
     }
 
     private function resolveAcademicYearId(): ?int
@@ -156,8 +181,68 @@ class ListReports extends ListRecords
                         default => 'danger',
                     }),
             ])
-            ->recordActions([])
+            ->recordActions([
+                $this->evaluateAction(),
+            ])
             ->emptyStateHeading(fn (): string => $this->emptyStateHeading());
+    }
+
+    private function evaluateAction(): Action
+    {
+        return Action::make('evaluate')
+            ->label('ປະເມີນ')
+            ->icon(Heroicon::OutlinedClipboardDocumentCheck)
+            ->visible(fn (): bool => $this->canEvaluate())
+            ->modalHeading('ປະເມີນຕົວຊີ້ວັດ')
+            ->modalSubmitActionLabel('ບັນທຶກ')
+            ->fillForm(function (Indicator $record): array {
+                $report = $this->reportForIndicator($record);
+
+                return [
+                    'score' => $report->score,
+                    'good_point' => $report->good_point,
+                    'remain_point' => $report->remain_point,
+                    'proposal' => $report->proposal,
+                    'status' => in_array($report->status, ['draft', 'submitted'], true) ? $report->status : 'draft',
+                ];
+            })
+            ->schema([
+                Placeholder::make('context')
+                    ->label('')
+                    ->content(fn (Indicator $record): HtmlString => new HtmlString(implode('<br>', [
+                        'ມາດຕະຖານ: '.e($record->standard->name),
+                        'ຕົວຊີ້ວັດ: '.e($record->name),
+                        'ພະແນກ/ພາກວິຊາ: '.e(Department::find($this->resolveDepartmentId())?->name ?? '-'),
+                        'ປີການສຶກສາ: '.e(AcademicYear::find($this->resolveAcademicYearId())?->name ?? '-'),
+                    ])))
+                    ->columnSpanFull(),
+                Select::make('status')
+                    ->label('ສະຖານະ')
+                    ->options(['draft' => 'ຮ່າງ', 'submitted' => 'ສົ່ງແລ້ວ'])
+                    ->default('draft')
+                    ->required()
+                    ->live(),
+                TextInput::make('score')
+                    ->label('ຄະແນນ')
+                    ->numeric()
+                    ->minValue(0)
+                    ->maxValue(100)
+                    ->step(0.01)
+                    ->helperText('0–100')
+                    ->required(fn (Get $get): bool => $get('status') !== 'draft'),
+                Textarea::make('good_point')->label('ຈຸດດີ')->columnSpanFull(),
+                Textarea::make('remain_point')->label('ຂໍ້ຄົງຄ້າງ')->columnSpanFull(),
+                Textarea::make('proposal')->label('ຂໍ້ສະເໜີ')->columnSpanFull(),
+            ])
+            ->action(function (Indicator $record, array $data): void {
+                $report = $this->reportForIndicator($record);
+
+                if (Auth::user()->hasRole('assessor')) {
+                    $data['assessor_id'] = Auth::id();
+                }
+
+                $report->update($data);
+            });
     }
 
     private function emptyStateHeading(): string

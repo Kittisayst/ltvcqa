@@ -1,11 +1,12 @@
 <?php
 
-use App\Filament\Resources\Reports\Pages\CreateReport;
+use App\Filament\Resources\Reports\Pages\EditReport;
+use App\Models\Report;
 use App\Models\User;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
-it('preloads and only lists users with the assessor role in the assessor_id select', function (): void {
+it('preloads and only lists users with the assessor role in the edit form assessor_id select', function (): void {
     actingAsSuperAdmin();
 
     $assessor = User::factory()->create();
@@ -13,7 +14,9 @@ it('preloads and only lists users with the assessor role in the assessor_id sele
 
     $departmentStaff = User::factory()->create();
 
-    $field = Livewire::test(CreateReport::class)
+    $report = Report::factory()->create();
+
+    $field = Livewire::test(EditReport::class, ['record' => $report->id])
         ->instance()
         ->getSchema('form')
         ->getComponent('assessor_id');

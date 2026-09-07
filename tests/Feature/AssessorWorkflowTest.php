@@ -2,7 +2,6 @@
 
 use App\Filament\Resources\Reports\Pages\EditReport;
 use App\Filament\Resources\Reports\Pages\ListReports;
-use App\Filament\Resources\Reports\ReportResource;
 use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\Indicator;
@@ -12,12 +11,6 @@ use App\Models\Standard;
 use App\Models\User;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
-
-it('cannot open the report create page', function (): void {
-    actingAsAssessor();
-
-    $this->get(ReportResource::getUrl('create'))->assertForbidden();
-});
 
 it('lets an assessor switch the console between any department', function (): void {
     AcademicYear::forgetActiveCache();
