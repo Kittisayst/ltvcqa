@@ -19,13 +19,26 @@ it('cannot open the report create page', function (): void {
     $this->get(ReportResource::getUrl('create'))->assertForbidden();
 });
 
-it('sees reports belonging to every department, not just its own', function (): void {
+it('lets an assessor switch the console between any department', function (): void {
+    AcademicYear::forgetActiveCache();
     actingAsAssessor();
 
-    $reports = Report::factory()->count(3)->create();
+    $framework = QaFramework::factory()->create();
+    $year = AcademicYear::factory()->create(['framework_id' => $framework->id, 'is_active' => true]);
+    $standard = Standard::factory()->create(['framework_id' => $framework->id]);
+    $indicator = Indicator::factory()->create(['standard_id' => $standard->id]);
+
+    $departmentA = Department::factory()->create();
+    $departmentB = Department::factory()->create();
+
+    Report::factory()->create(['indicator_id' => $indicator->id, 'department_id' => $departmentA->id, 'academic_year_id' => $year->id, 'status' => 'submitted']);
+    Report::factory()->create(['indicator_id' => $indicator->id, 'department_id' => $departmentB->id, 'academic_year_id' => $year->id, 'status' => 'approved']);
 
     Livewire::test(ListReports::class)
-        ->assertCanSeeTableRecords($reports);
+        ->set('tableFilters.department_id.value', $departmentA->id)
+        ->assertSee('ສົ່ງແລ້ວ')
+        ->set('tableFilters.department_id.value', $departmentB->id)
+        ->assertSee('ອະນຸມັດ');
 });
 
 it('can update evaluation fields but not reassign the report to a different indicator, department, or year', function (): void {

@@ -10,6 +10,7 @@ use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\Document;
 use App\Models\Indicator;
+use App\Models\QaFramework;
 use App\Models\Report;
 use App\Models\Standard;
 use App\Models\User;
@@ -75,16 +76,31 @@ it('forces the report department to its own department regardless of submitted v
     expect($report->department_id)->toBe($department->id);
 });
 
-it('sees reports from every department in the list, read-only', function (): void {
+it('scopes the assessment console to the department-staff user\'s own department', function (): void {
+    AcademicYear::forgetActiveCache();
+
     $department = Department::factory()->create();
     actingAsDepartmentStaff($department);
 
-    $ownReports = Report::factory()->count(2)->create(['department_id' => $department->id]);
-    $otherReports = Report::factory()->count(2)->create();
+    $framework = QaFramework::factory()->create();
+    $year = AcademicYear::factory()->for($framework, 'framework')->create(['is_active' => true]);
+    $standard = Standard::factory()->for($framework, 'framework')->create();
+    $indicator = Indicator::factory()->for($standard)->create();
 
+    // A report exists for another department only.
+    Report::factory()->create([
+        'indicator_id' => $indicator->id,
+        'academic_year_id' => $year->id,
+        'status' => 'approved',
+    ]);
+
+    // The console is locked to the staff member's own department, so the
+    // indicator reads as not-assessed and the other department's approval
+    // is invisible.
     Livewire::test(ListReports::class)
-        ->assertCanSeeTableRecords($ownReports)
-        ->assertCanSeeTableRecords($otherReports);
+        ->assertCanSeeTableRecords([$indicator])
+        ->assertSee('ຍັງບໍ່ໄດ້ປະເມີນ')
+        ->assertDontSee('ອະນຸມັດ');
 });
 
 it('can view but not edit another department\'s report', function (): void {

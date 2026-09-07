@@ -1,0 +1,128 @@
+<?php
+
+use App\Filament\Resources\Reports\Pages\ListReports;
+use App\Models\AcademicYear;
+use App\Models\Department;
+use App\Models\Indicator;
+use App\Models\QaFramework;
+use App\Models\Report;
+use App\Models\Standard;
+use Illuminate\Support\Collection;
+use Livewire\Livewire;
+
+beforeEach(fn () => AcademicYear::forgetActiveCache());
+
+/**
+ * Builds a published framework with two standards, two indicators each,
+ * plus an active academic year pointing at it.
+ *
+ * @return array{year: AcademicYear, framework: QaFramework, indicators: Collection<int, Indicator>}
+ */
+function assessmentFixture(): array
+{
+    $framework = QaFramework::factory()->create();
+    $year = AcademicYear::factory()->for($framework, 'framework')->create(['is_active' => true, 'name' => '2024-2025']);
+
+    $standardA = Standard::factory()->for($framework, 'framework')->create(['name' => 'ມາດຕະຖານ ກ', 'order' => 1]);
+    $standardB = Standard::factory()->for($framework, 'framework')->create(['name' => 'ມາດຕະຖານ ຂ', 'order' => 2]);
+
+    $indicators = collect([
+        Indicator::factory()->for($standardA)->create(['name' => 'ຕົວຊີ້ວັດ ກ1', 'order' => 1]),
+        Indicator::factory()->for($standardA)->create(['name' => 'ຕົວຊີ້ວັດ ກ2', 'order' => 2]),
+        Indicator::factory()->for($standardB)->create(['name' => 'ຕົວຊີ້ວັດ ຂ1', 'order' => 1]),
+        Indicator::factory()->for($standardB)->create(['name' => 'ຕົວຊີ້ວັດ ຂ2', 'order' => 2]),
+    ]);
+
+    return ['year' => $year, 'framework' => $framework, 'indicators' => $indicators];
+}
+
+it('shows no rows until both academic year and department are chosen', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators] = assessmentFixture();
+
+    // Year is auto-selected (active), but department is not.
+    Livewire::test(ListReports::class)
+        ->assertCanNotSeeTableRecords($indicators);
+});
+
+it('lists every indicator of the selected year framework once a department is picked', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertCanSeeTableRecords($indicators)
+        ->assertSee('ຕົວຊີ້ວັດ ກ1')
+        ->assertSee('ມາດຕະຖານ ກ');
+});
+
+it('does not list indicators from another framework', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    $otherFrameworkIndicator = Indicator::factory()
+        ->for(Standard::factory()->for(QaFramework::factory(), 'framework'))
+        ->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertCanSeeTableRecords($indicators)
+        ->assertCanNotSeeTableRecords([$otherFrameworkIndicator]);
+});
+
+it('shows a not-assessed badge for an indicator with no report and the report status otherwise', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+
+    Report::factory()->create([
+        'indicator_id' => $indicators->first()->id,
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'status' => 'submitted',
+    ]);
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertSee('ຍັງບໍ່ໄດ້ປະເມີນ')
+        ->assertSee('ສົ່ງແລ້ວ');
+});
+
+it('locks a department-staff user to their own department', function (): void {
+    $department = Department::factory()->create();
+    actingAsDepartmentStaff($department);
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+
+    $ownReport = Report::factory()->create([
+        'indicator_id' => $indicators->first()->id,
+        'department_id' => $department->id,
+        'academic_year_id' => $year->id,
+        'status' => 'approved',
+    ]);
+
+    // No department filter set — a department-staff user is auto-scoped.
+    Livewire::test(ListReports::class)
+        ->assertCanSeeTableRecords($indicators)
+        ->assertSee('ອະນຸມັດ');
+});
+
+it('shows an empty state prompt when no academic year is resolved', function (): void {
+    actingAsAssessor();
+    // No academic year at all.
+
+    Livewire::test(ListReports::class)
+        ->assertSee('ເລືອກປີການສຶກສາ');
+});
+
+it('shows an empty state when the framework has no standards', function (): void {
+    actingAsAssessor();
+    $framework = QaFramework::factory()->create();
+    AcademicYear::factory()->for($framework, 'framework')->create(['is_active' => true]);
+    $department = Department::factory()->create();
+
+    Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->assertSee('ຊຸດມາດຕະຖານຍັງບໍ່ມີໂຄງສ້າງ');
+});
