@@ -2,6 +2,8 @@
 
 Manages internal quality-assurance self-assessment for a vocational education institution: departments submit evidence documents against a ministry-issued QA framework, organized as Standard → Indicator → BasisMain.
 
+The framework feeds two parallel flows: **evidence submission** (Documents, produced by departments against BasisMains) and **assessment** (Reports, produced by assessors against Indicators).
+
 ## Language
 
 **QA Framework (ຊຸດມາດຕະຖານ)**:
@@ -18,3 +20,8 @@ _Avoid_: reference_no, issued_date, ເລກທີ່ (as a Document-level conc
 
 **DocumentFile (ໄຟລ໌ແນບ)**:
 One physical evidentiary file (PDF/image/etc.) attached to a Document. Each DocumentFile is itself an official paper with its own reference number (`reference_no`, ເລກທີ່) and issue date (`issued_date`) — two files under the same Document can carry different reference numbers, because in the source institution's paper trail, every physical document that gets filed is separately numbered. A Document with multiple files is not one numbered paper; it's a bundle of several.
+
+**Report (ບົດລາຍງານປະເມີນ)**:
+One assessor's assessment of a single **Indicator**, scoped to a **Department** and an **AcademicYear** — at most one per `(indicator, department, academic_year)`. Carries a `score` (0–100) and three narrative fields: `good_point` (ຈຸດດີ), `remain_point` (ຂໍ້ຄົງຄ້າງ), `proposal` (ຂໍ້ສະເໜີ). It assesses the Indicator as a whole, informed by the department's Document evidence on that Indicator's BasisMains, but is not attached to any individual Document or BasisMain.
+_Lifecycle_: **draft** (assessor working) → **submitted** (assessor finished, awaiting approval) → **approved** (super_admin / QA lead signed off, department notified). A `score` is required to leave draft. Only `super_admin` performs `submitted → approved`.
+_Avoid_: treating a Report as per-BasisMain or per-Document (it is per-Indicator); "review" or "audit" as synonyms.
