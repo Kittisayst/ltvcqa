@@ -1,7 +1,7 @@
 {
-  "_fonts-C9MNnjVw.css": {
-    "file": "assets/fonts-C9MNnjVw.css",
-    "src": "_fonts-C9MNnjVw.css"
+  "_fonts-CmXW_-uh.css": {
+    "file": "assets/fonts-CmXW_-uh.css",
+    "src": "_fonts-CmXW_-uh.css"
   },
   "_instrument-sans-400-normal-D1W7dsQl.woff": {
     "file": "assets/instrument-sans-400-normal-D1W7dsQl.woff",
@@ -27,8 +27,32 @@
     "file": "assets/instrument-sans-600-normal-B9e8oLYv.woff",
     "src": "_instrument-sans-600-normal-B9e8oLYv.woff"
   },
+  "_noto-sans-lao-400-normal-CNKshTz3.woff2": {
+    "file": "assets/noto-sans-lao-400-normal-CNKshTz3.woff2",
+    "src": "_noto-sans-lao-400-normal-CNKshTz3.woff2"
+  },
+  "_noto-sans-lao-400-normal-DjxqBYpY.woff": {
+    "file": "assets/noto-sans-lao-400-normal-DjxqBYpY.woff",
+    "src": "_noto-sans-lao-400-normal-DjxqBYpY.woff"
+  },
+  "_noto-sans-lao-500-normal-PbFcAkjl.woff": {
+    "file": "assets/noto-sans-lao-500-normal-PbFcAkjl.woff",
+    "src": "_noto-sans-lao-500-normal-PbFcAkjl.woff"
+  },
+  "_noto-sans-lao-500-normal-cGCoX3Zg.woff2": {
+    "file": "assets/noto-sans-lao-500-normal-cGCoX3Zg.woff2",
+    "src": "_noto-sans-lao-500-normal-cGCoX3Zg.woff2"
+  },
+  "_noto-sans-lao-600-normal-COf01H3R.woff": {
+    "file": "assets/noto-sans-lao-600-normal-COf01H3R.woff",
+    "src": "_noto-sans-lao-600-normal-COf01H3R.woff"
+  },
+  "_noto-sans-lao-600-normal-imeIRcX2.woff2": {
+    "file": "assets/noto-sans-lao-600-normal-imeIRcX2.woff2",
+    "src": "_noto-sans-lao-600-normal-imeIRcX2.woff2"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-B9HN7gJx.css",
+    "file": "assets/app-BmUjFxZz.css",
     "name": "app",
     "names": [
       "app.css"

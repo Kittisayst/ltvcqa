@@ -39,6 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->brandLogo(asset('images/ltvc_logo.png'))
             ->brandLogoHeight('3rem')
+            ->favicon(asset('images/ltvc_logo.png'))
             ->font('noto sans lao')
             ->navigationGroups([
                 'ຫຼັກຖານ ແລະ ເອກະສານ',
