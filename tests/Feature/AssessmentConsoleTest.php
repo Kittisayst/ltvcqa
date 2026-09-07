@@ -5,6 +5,7 @@ use App\Models\AcademicYear;
 use App\Models\BasisMain;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentFile;
 use App\Models\Indicator;
 use App\Models\QaFramework;
 use App\Models\Report;
@@ -175,6 +176,34 @@ it('stamps the current assessor when they save the evaluate modal', function ():
         ->assertHasNoTableActionErrors();
 
     expect(Report::first()->assessor_id)->toBe($assessor->id);
+});
+
+it('lists the department evidence for the indicator inside the evaluate modal', function (): void {
+    actingAsAssessor();
+    ['indicators' => $indicators, 'year' => $year] = assessmentFixture();
+    $department = Department::factory()->create();
+    $indicator = $indicators->first();
+
+    $withEvidence = BasisMain::factory()->for($indicator)->create(['title' => 'ມີວິໄສທັດ', 'order' => 1]);
+    BasisMain::factory()->for($indicator)->create(['title' => 'ມີແຜນຍຸດທະສາດ', 'order' => 2]);
+
+    $staff = User::factory()->for($department)->create();
+    $document = Document::factory()->for($staff, 'user')->for($year, 'academicYear')->for($withEvidence, 'basisMain')->create();
+    DocumentFile::factory()->for($document)->create(['original_name' => 'vision.pdf']);
+
+    $schema = Livewire::test(ListReports::class)
+        ->set('tableFilters.department_id.value', $department->id)
+        ->mountTableAction('evaluate', $indicator->id)
+        ->instance()
+        ->getMountedTableActionForm();
+
+    $evidence = (string) $schema->getComponent('evidence')->getContent();
+
+    expect($evidence)
+        ->toContain('ມີວິໄສທັດ')
+        ->toContain('vision.pdf')
+        ->toContain('ມີແຜນຍຸດທະສາດ')
+        ->toContain('ຍັງບໍ່ມີຫຼັກຖານ');
 });
 
 it('hides the evaluate action from department staff', function (): void {

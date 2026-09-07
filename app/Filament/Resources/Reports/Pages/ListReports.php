@@ -4,7 +4,9 @@ namespace App\Filament\Resources\Reports\Pages;
 
 use App\Filament\Resources\Reports\ReportResource;
 use App\Models\AcademicYear;
+use App\Models\BasisMain;
 use App\Models\Department;
+use App\Models\DocumentFile;
 use App\Models\Indicator;
 use App\Models\Report;
 use Filament\Actions\Action;
@@ -21,6 +23,7 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
@@ -233,6 +236,10 @@ class ListReports extends ListRecords
                 Textarea::make('good_point')->label('ຈຸດດີ')->columnSpanFull(),
                 Textarea::make('remain_point')->label('ຂໍ້ຄົງຄ້າງ')->columnSpanFull(),
                 Textarea::make('proposal')->label('ຂໍ້ສະເໜີ')->columnSpanFull(),
+                Placeholder::make('evidence')
+                    ->label('ຫຼັກຖານທີ່ພະແນກອັບໂຫຼດ')
+                    ->content(fn (Indicator $record): HtmlString => $this->evidencePanelContent($record))
+                    ->columnSpanFull(),
             ])
             ->action(function (Indicator $record, array $data): void {
                 $report = $this->reportForIndicator($record);
@@ -243,6 +250,62 @@ class ListReports extends ListRecords
 
                 $report->update($data);
             });
+    }
+
+    /**
+     * Read-only rundown of the scoped department's evidence for this
+     * Indicator: every BasisMain, its uploaded files as new-tab links, and
+     * a greyed marker where a BasisMain has no Document yet.
+     */
+    private function evidencePanelContent(Indicator $record): HtmlString
+    {
+        $departmentId = $this->resolveDepartmentId();
+        $yearId = $this->resolveAcademicYearId();
+
+        $basisMains = $record->basisMains()
+            ->orderBy('order')
+            ->with(['documents' => fn ($documents) => $documents
+                ->where('academic_year_id', $yearId)
+                ->whereHas('user', fn ($user) => $user->where('department_id', $departmentId))
+                ->with('files'),
+            ])
+            ->get();
+
+        if ($basisMains->isEmpty()) {
+            return new HtmlString('<p style="color: var(--gray-500);">ຕົວຊີ້ວັດນີ້ຍັງບໍ່ມີຫຼັກຖານໃນໂຄງສ້າງ</p>');
+        }
+
+        $blocks = $basisMains->map(function (BasisMain $basisMain): string {
+            $files = $basisMain->documents->flatMap->files;
+
+            $body = $files->isEmpty()
+                ? '<span style="color: var(--gray-400);">ຍັງບໍ່ມີຫຼັກຖານ</span>'
+                : $files->map(fn (DocumentFile $file): string => sprintf(
+                    '<a href="%s" target="_blank" rel="noopener" style="color: var(--primary-600); text-decoration: underline;">%s</a>',
+                    e($this->fileUrl($file)),
+                    e($file->original_name ?: ($file->reference_no ?: 'ໄຟລ໌')),
+                ))->implode(' &middot; ');
+
+            return '<div style="margin-bottom: 0.5rem;">'
+                .'<div style="font-weight: 500;">'.e($basisMain->order.'. '.$basisMain->title).'</div>'
+                .'<div style="padding-inline-start: 1rem;">'.$body.'</div>'
+                .'</div>';
+        })->implode('');
+
+        return new HtmlString($blocks);
+    }
+
+    private function fileUrl(DocumentFile $file): string
+    {
+        try {
+            return Storage::disk($file->disk)->temporaryUrl($file->path, now()->addMinutes(5));
+        } catch (\Throwable) {
+            try {
+                return Storage::disk($file->disk)->url($file->path);
+            } catch (\Throwable) {
+                return '#';
+            }
+        }
     }
 
     private function emptyStateHeading(): string
